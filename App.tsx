@@ -7,11 +7,32 @@ import ImageView from './components/ImageView';
 import VideoView from './components/VideoView';
 import WelcomeScreen from './components/WelcomeScreen';
 import LoadingScreen from './components/LoadingScreen';
+import ConfigurationErrorScreen from './components/ConfigurationErrorScreen';
 import { SparklesIcon, AiroraLogo, AtharrazkaCoreLogo } from './components/icons/Icons';
-import { GoogleGenAI, Modality, Chat, Part } from '@google/genai';
+// FIX: Import GenerateVideosOperation for type casting in video polling.
+import { GoogleGenAI, Modality, Chat, Part, GenerateVideosOperation } from '@google/genai';
 
-// Fix: Use process.env.API_KEY as per the guidelines.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Safely get the API key. In a browser environment, `process` will not be defined,
+// and this function will prevent a crash by returning undefined.
+const getApiKey = (): string | undefined => {
+    try {
+        // This check is for server-side or build-time environments.
+        // It will not work for a static file deployment on Vercel.
+        if (typeof process !== 'undefined' && process.env) {
+            return process.env.API_KEY;
+        }
+        return undefined;
+    } catch (e) {
+        // Catch ReferenceError if 'process' is not defined.
+        return undefined;
+    }
+};
+
+const API_KEY = getApiKey();
+
+// Initialize the AI client only if the API key is available.
+// If not, `ai` will be null, and the app will show an error screen.
+const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
 type AppState = 'welcome' | 'loading' | 'active';
 
@@ -31,6 +52,12 @@ const App: React.FC = () => {
 
     const activePolls = useRef<Set<string>>(new Set());
     
+    // The primary check. If the 'ai' client failed to initialize,
+    // render the error screen instead of the application.
+    if (!ai) {
+        return <ConfigurationErrorScreen />;
+    }
+
     useEffect(() => {
         try {
             const savedMessages = localStorage.getItem('airora_chat_history');
@@ -79,19 +106,21 @@ const App: React.FC = () => {
     // Video Polling Effect
     useEffect(() => {
         const poll = async (video: GeneratedVideo) => {
-            if (activePolls.current.has(video.id) || !video.operationName) return;
+            if (activePolls.current.has(video.id) || !video.operationName || !API_KEY) return;
             activePolls.current.add(video.id);
     
             try {
-                let operation = await ai.operations.getVideosOperation({ operation: { name: video.operationName } });
+                // FIX: Cast the operation object to satisfy TypeScript for the initial poll. The API likely only needs the name.
+                let operation = await ai.operations.getVideosOperation({ operation: { name: video.operationName } as GenerateVideosOperation });
                 while (!operation.done) {
                     await new Promise(resolve => setTimeout(resolve, 10000)); // Poll every 10 seconds
-                    operation = await ai.operations.getVideosOperation({ operation: { name: video.operationName } });
+                    // FIX: Pass the entire operation object back for subsequent polling checks.
+                    operation = await ai.operations.getVideosOperation({ operation: operation });
                 }
     
                 if (operation.response?.generatedVideos?.[0]?.video?.uri) {
                     const downloadLink = operation.response.generatedVideos[0].video.uri;
-                    const videoUrl = `${downloadLink}&key=${process.env.API_KEY}`;
+                    const videoUrl = `${downloadLink}&key=${API_KEY}`;
                     setVideos(prev => prev.map(v => v.id === video.id ? { ...v, status: 'completed', videoUrl } : v));
                 } else {
                     throw new Error("Video generation finished but no video URI was found.");
@@ -262,7 +291,8 @@ const App: React.FC = () => {
                     messageParts.push({ text: prompt });
                 }
                 
-                const response = await chatSession.sendMessageStream({ message: { parts: messageParts } });
+                // FIX: The 'message' property for sendMessageStream should be an array of Parts, not an object containing a 'parts' property.
+                const response = await chatSession.sendMessageStream({ message: messageParts });
                 let fullResponse = '';
                 for await (const chunk of response) {
                     if (chunk?.text) {
