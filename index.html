@@ -137,6 +137,20 @@
         .animate-text-glow {
             animation: text-glow-pulse 3s infinite ease-in-out;
         }
+
+        /* New Animation for Command Button */
+        @keyframes command-button-pulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(0, 255, 255, 0.4), 0 0 30px rgba(138, 43, 226, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 35px rgba(0, 255, 255, 0.7), 0 0 50px rgba(138, 43, 226, 0.5);
+            }
+        }
+        .animate-command-pulse {
+            /* This animation will override the box-shadow from .glass-glow */
+            animation: command-button-pulse 3s infinite ease-in-out;
+        }
     </style>
 <script type="importmap">
 {
