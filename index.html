@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIRORA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        body {
+            /* Use a very dark purple to blend with the aurora instead of pure black */
+            background-color: #0a0112;
+            color: #e5e5e5;
+            overflow: hidden;
+        }
+
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 150vw;
+            height: 150vw;
+            transform-origin: center center;
+            z-index: 0;
+            filter: blur(120px);
+            will-change: transform;
+            /* Increased opacity for more vibrant colors and less black background */
+            opacity: 0.7;
+        }
+        
+        body::before {
+            background: radial-gradient(circle at 30% 30%, rgba(0, 255, 255, 0.7), transparent 50%),
+                        radial-gradient(circle at 70% 70%, rgba(138, 43, 226, 0.6), transparent 50%);
+            animation: fluid-aurora 25s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+        }
+
+        body::after {
+            background: radial-gradient(circle at 70% 30%, rgba(0, 255, 255, 0.4), transparent 50%),
+                        radial-gradient(circle at 30% 70%, rgba(138, 43, 226, 0.7), transparent 50%);
+            animation: fluid-aurora-2 20s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+        }
+
+        /* New keyframes for a more chaotic, liquid-like, and continuous motion */
+        @keyframes fluid-aurora {
+            0%   { transform: translate(-50%, -50%) rotate(0deg) scale(1); border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
+            25%  { transform: translate(-40%, -60%) rotate(90deg) scale(1.1); border-radius: 60% 40% 70% 30% / 40% 60% 30% 70%; }
+            50%  { transform: translate(-60%, -40%) rotate(180deg) scale(0.9); border-radius: 30% 70% 40% 60% / 70% 30% 60% 40%; }
+            75%  { transform: translate(-55%, -55%) rotate(270deg) scale(1.2); border-radius: 40% 60% 30% 70% / 60% 40% 70% 30%; }
+            100% { transform: translate(-50%, -50%) rotate(360deg) scale(1); border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
+        }
+        @keyframes fluid-aurora-2 {
+            0%   { transform: translate(-50%, -50%) rotate(0deg) scale(1); border-radius: 45% 55% 70% 30% / 30% 70% 45% 55%; }
+            50%  { transform: translate(-55%, -45%) rotate(-180deg) scale(1.2); border-radius: 70% 30% 55% 45% / 60% 40% 55% 45%; }
+            100% { transform: translate(-50%, -50%) rotate(-360deg) scale(1); border-radius: 45% 55% 70% 30% / 30% 70% 45% 55%; }
+        }
+
+
+        #root {
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Custom Scrollbar for Chat */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: rgba(134, 239, 172, 0.3);
+          border-radius: 20px;
+          border: 3px solid transparent;
+        }
+
+        /* Glassmorphism with Glowing Edges */
+        .glass-glow {
+            background: rgba(17, 24, 39, 0.5); /* bg-gray-900/50 */
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(134, 239, 172, 0.1), 0 0 40px rgba(96, 165, 250, 0.1);
+        }
+
+        /* Animations */
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+
+        @keyframes fly-in {
+            from {
+                opacity: 0;
+                transform: scale(0.1) translateY(200%);
+                transform-origin: bottom center;
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+                transform-origin: bottom center;
+            }
+        }
+        .animate-fly-in { animation: fly-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+        @keyframes fly-out {
+            from {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+                transform-origin: bottom center;
+            }
+            to {
+                opacity: 0;
+                transform: scale(0.1) translateY(200%);
+                transform-origin: bottom center;
+            }
+        }
+        .animate-fly-out { animation: fly-out 0.4s cubic-bezier(0.36, 0, 0.66, -0.56) forwards; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
