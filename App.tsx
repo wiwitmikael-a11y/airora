@@ -9,7 +9,8 @@ import LoadingScreen from './components/LoadingScreen';
 import { SparklesIcon, AiroraLogo, AtharrazkaCoreLogo } from './components/icons/Icons';
 import { GoogleGenAI, Modality, Chat, Part } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+// Fix: Use process.env.API_KEY as per the guidelines.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 type AppState = 'welcome' | 'loading' | 'active';
 
@@ -208,7 +209,8 @@ const App: React.FC = () => {
                     messageParts.push({ text: prompt });
                 }
                 
-                const response = await chatSession.sendMessageStream({ message: messageParts });
+                // Fix: Correctly structure multipart message payload.
+                const response = await chatSession.sendMessageStream({ message: { parts: messageParts } });
                 let fullResponse = '';
                 for await (const chunk of response) {
                     if (chunk?.text) {
