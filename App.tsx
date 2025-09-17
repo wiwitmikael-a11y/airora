@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { ViewType, ChatMessage, MessageRole, GeneratedImage, ImageForEditing } from './types';
-import { TEXT_MODEL_ID, IMAGE_MODEL_ID, IMAGE_EDIT_MODEL_ID, LORE_SNIPPETS, SYSTEM_INSTRUCTIONS, WELCOME_MESSAGES } from './constants';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { ViewType, ChatMessage, MessageRole, GeneratedImage, ImageForEditing, GeneratedVideo } from './types';
+import { TEXT_MODEL_ID, IMAGE_MODEL_ID, IMAGE_EDIT_MODEL_ID, VIDEO_MODEL_ID, LORE_SNIPPETS, SYSTEM_INSTRUCTIONS, WELCOME_MESSAGES } from './constants';
 import CommandMenu from './components/CommandMenu';
 import ChatView from './components/ChatView';
 import ImageView from './components/ImageView';
+import VideoView from './components/VideoView';
 import WelcomeScreen from './components/WelcomeScreen';
 import LoadingScreen from './components/LoadingScreen';
 import { SparklesIcon, AiroraLogo, AtharrazkaCoreLogo } from './components/icons/Icons';
@@ -22,10 +23,13 @@ const App: React.FC = () => {
     
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [images, setImages] = useState<GeneratedImage[]>([]);
+    const [videos, setVideos] = useState<GeneratedVideo[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
 
     const [chatSession, setChatSession] = useState<Chat | null>(null);
     const [promptWithImage, setPromptWithImage] = useState<GeneratedImage | null>(null);
+
+    const activePolls = useRef<Set<string>>(new Set());
     
     useEffect(() => {
         try {
@@ -33,6 +37,8 @@ const App: React.FC = () => {
             if (savedMessages) setMessages(JSON.parse(savedMessages));
             const savedImages = localStorage.getItem('airora_image_history');
             if (savedImages) setImages(JSON.parse(savedImages));
+            const savedVideos = localStorage.getItem('airora_video_history');
+            if (savedVideos) setVideos(JSON.parse(savedVideos));
         } catch (error) {
             console.error("Failed to load history from localStorage", error);
         }
@@ -50,6 +56,12 @@ const App: React.FC = () => {
         }
     }, [images, appState]);
 
+    useEffect(() => {
+        if (appState === 'active' && videos.length > 0) {
+           localStorage.setItem('airora_video_history', JSON.stringify(videos));
+       }
+   }, [videos, appState]);
+
     // Effect to handle "Use as Story Prompt"
      useEffect(() => {
         if (chatSession && promptWithImage) {
@@ -64,6 +76,46 @@ const App: React.FC = () => {
         }
     }, [chatSession, promptWithImage]);
 
+    // Video Polling Effect
+    useEffect(() => {
+        const poll = async (video: GeneratedVideo) => {
+            if (activePolls.current.has(video.id) || !video.operationName) return;
+            activePolls.current.add(video.id);
+    
+            try {
+                let operation = await ai.operations.getVideosOperation({ operation: { name: video.operationName } });
+                while (!operation.done) {
+                    await new Promise(resolve => setTimeout(resolve, 10000)); // Poll every 10 seconds
+                    operation = await ai.operations.getVideosOperation({ operation: { name: video.operationName } });
+                }
+    
+                if (operation.response?.generatedVideos?.[0]?.video?.uri) {
+                    const downloadLink = operation.response.generatedVideos[0].video.uri;
+                    const videoUrl = `${downloadLink}&key=${process.env.API_KEY}`;
+                    setVideos(prev => prev.map(v => v.id === video.id ? { ...v, status: 'completed', videoUrl } : v));
+                } else {
+                    throw new Error("Video generation finished but no video URI was found.");
+                }
+            } catch (error) {
+                console.error(`Polling failed for video ${video.id}:`, error);
+                setVideos(prev => prev.map(v => v.id === video.id ? { ...v, status: 'failed' } : v));
+            } finally {
+                 activePolls.current.delete(video.id);
+            }
+        };
+    
+        videos.forEach(video => {
+            if (video.status === 'processing') {
+                poll(video);
+            }
+        });
+    
+        return () => {
+            // This cleanup is simplified. In a real-world scenario with component unmounts,
+            // you might need more sophisticated cleanup logic (e.g., AbortController).
+        };
+    }, [videos]);
+
 
     const handleBegin = () => {
         setAppState('loading');
@@ -75,13 +127,12 @@ const App: React.FC = () => {
     const handleViewChange = (newView: ViewType) => {
         setIsMenuOpen(false);
         const startViewChange = () => {
-            if (Object.values(ViewType).includes(newView) && newView !== ViewType.IMAGE && newView !== ViewType.NONE) {
+            if (Object.values(ViewType).includes(newView) && ![ViewType.IMAGE, ViewType.VIDEO, ViewType.NONE].includes(newView)) {
                 const newChat = ai.chats.create({
                     model: TEXT_MODEL_ID,
                     config: { systemInstruction: SYSTEM_INSTRUCTIONS[newView] },
                 });
                 setChatSession(newChat);
-                // Set the specific welcome message for the new view
                 const welcomeMessage: ChatMessage = {
                     id: 'welcome-message',
                     role: MessageRole.AI,
@@ -90,8 +141,8 @@ const App: React.FC = () => {
                 setMessages([welcomeMessage]);
             } else {
                 setChatSession(null);
-                 if (newView === ViewType.IMAGE) {
-                    setMessages([]); // Clear chat messages when switching to image view
+                 if (newView === ViewType.IMAGE || newView === ViewType.VIDEO) {
+                    setMessages([]);
                 }
             }
             setActiveView(newView);
@@ -113,9 +164,11 @@ const App: React.FC = () => {
             setActiveView(ViewType.NONE);
             setMessages([]);
             setImages([]);
+            setVideos([]);
             setChatSession(null);
             localStorage.removeItem('airora_chat_history');
             localStorage.removeItem('airora_image_history');
+            localStorage.removeItem('airora_video_history');
             setIsAnimatingOut(false);
         }, 400);
     };
@@ -209,7 +262,6 @@ const App: React.FC = () => {
                     messageParts.push({ text: prompt });
                 }
                 
-                // Fix: Correctly structure multipart message payload.
                 const response = await chatSession.sendMessageStream({ message: { parts: messageParts } });
                 let fullResponse = '';
                 for await (const chunk of response) {
@@ -238,6 +290,42 @@ const App: React.FC = () => {
         }
         setIsProcessing(false);
     }, [activeView, chatSession]);
+
+    const handleGenerateVideo = useCallback(async (prompt: string, uploadedImage?: ChatMessage['uploadedImage']) => {
+        setIsProcessing(true);
+        const newVideoId = Date.now().toString();
+        const newVideoPlaceholder: GeneratedVideo = {
+            id: newVideoId,
+            prompt,
+            status: 'processing',
+            operationName: '',
+            uploadedImage: uploadedImage ? { url: uploadedImage.url } : undefined,
+        };
+        setVideos(prev => [newVideoPlaceholder, ...prev]);
+    
+        try {
+            const videoParams: any = {
+                model: VIDEO_MODEL_ID,
+                prompt,
+                config: { numberOfVideos: 1 }
+            };
+    
+            if (uploadedImage) {
+                const { base64, mimeType } = await getBase64FromImageUrl(uploadedImage.url);
+                videoParams.image = { imageBytes: base64, mimeType };
+            }
+    
+            const operation = await ai.models.generateVideos(videoParams);
+            
+            setVideos(prev => prev.map(v => v.id === newVideoId ? { ...v, operationName: operation.name } : v));
+            
+        } catch (error) {
+            console.error("Video Generation Error:", error);
+            setVideos(prev => prev.map(v => v.id === newVideoId ? { ...v, status: 'failed' } : v));
+        } finally {
+            setIsProcessing(false);
+        }
+    }, []);
     
     const handleGenerateVariations = useCallback(async (prompt: string) => {
         setIsProcessing(true);
@@ -294,13 +382,11 @@ const App: React.FC = () => {
     }, []);
 
     const getBase64FromImageUrl = async (url: string): Promise<{base64: string, mimeType: string}> => {
-        // Handle base64 URLs directly
         if (url.startsWith('data:')) {
             const [header, base64] = url.split(',');
             const mimeType = header.match(/:(.*?);/)?.[1] || 'image/png';
             return { base64, mimeType };
         }
-        // Handle remote URLs
         const response = await fetch(url);
         const blob = await response.blob();
         return new Promise((resolve, reject) => {
@@ -322,11 +408,14 @@ const App: React.FC = () => {
         <div className="h-screen w-screen flex flex-col items-center p-4 md:p-8 relative">
             <div className="w-full h-full flex flex-col items-center pt-4 pb-28 md:pb-32">
                  <div className="w-full h-full max-w-5xl">
-                    {Object.values(ViewType).includes(activeView) && activeView !== ViewType.IMAGE && activeView !== ViewType.NONE && (
+                    {Object.values(ViewType).includes(activeView) && ![ViewType.IMAGE, ViewType.VIDEO, ViewType.NONE].includes(activeView) && (
                         <ChatView messages={messages} isProcessing={isProcessing} onSendMessage={handleSendMessage} isAnimatingOut={isAnimatingOut} viewType={activeView}/>
                     )}
                     {activeView === ViewType.IMAGE && (
                         <ImageView images={images} isProcessing={isProcessing} onSendMessage={handleSendMessage} onEditImage={handleEditImage} isAnimatingOut={isAnimatingOut} onGenerateVariations={handleGenerateVariations} onUseAsStoryPrompt={handleUseAsStoryPrompt} />
+                    )}
+                    {activeView === ViewType.VIDEO && (
+                        <VideoView videos={videos} isProcessing={isProcessing} onGenerateVideo={handleGenerateVideo} isAnimatingOut={isAnimatingOut} />
                     )}
                 </div>
             </div>
@@ -338,7 +427,6 @@ const App: React.FC = () => {
             )}
             
             <div className="w-full max-w-5xl flex justify-center items-center gap-4 md:gap-6 px-4 absolute bottom-4 md:bottom-8 z-50">
-                {/* AIRORA Branding (Left) */}
                 <div className="flex-1 flex justify-end">
                     <div className="flex items-center gap-2 text-white/70 transition-opacity duration-300">
                         <AiroraLogo className="w-9 h-9 md:w-10 md:h-10" />
@@ -346,7 +434,6 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Command Button (Center) */}
                 <div className="relative">
                     <button
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -360,7 +447,6 @@ const App: React.FC = () => {
                     )}
                 </div>
 
-                {/* Atharrazka Core Branding (Right) */}
                 <div className="flex-1 flex justify-start">
                      <div className="flex items-center gap-2 text-white/70 transition-opacity duration-300">
                         <AtharrazkaCoreLogo className="w-9 h-9 md:w-10 md:h-10" />

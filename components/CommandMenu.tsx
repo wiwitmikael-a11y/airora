@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewType } from '../types';
-import { LightbulbIcon, FeatherIcon, CodeBracketIcon, ImageIcon, TrashIcon, CloseIcon } from './icons/Icons';
+import { LightbulbIcon, FeatherIcon, CodeBracketIcon, ImageIcon, FilmIcon, TrashIcon, CloseIcon } from './icons/Icons';
 
 interface CommandMenuProps {
     onSelectView: (view: ViewType) => void;
@@ -14,6 +14,7 @@ const CommandMenu: React.FC<CommandMenuProps> = ({ onSelectView, onEndSession, o
         { icon: FeatherIcon, label: 'Poetic Mode', action: () => onSelectView(ViewType.POETIC) },
         { icon: CodeBracketIcon, label: 'Code Mode', action: () => onSelectView(ViewType.CODE) },
         { icon: ImageIcon, label: 'Image Generator', action: () => onSelectView(ViewType.IMAGE) },
+        { icon: FilmIcon, label: 'Video Generator', action: () => onSelectView(ViewType.VIDEO) },
         { icon: TrashIcon, label: 'End Session', action: onEndSession },
     ];
 

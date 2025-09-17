@@ -59,9 +59,10 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
         }
     }, [prompt]);
 
-    const placeholderText = mode === ViewType.IMAGE 
-        ? "Jelaskan gambar yang ingin dibuat..."
-        : "Tanyakan apa saja, atau lampirkan gambar...";
+    const placeholderText = 
+        mode === ViewType.IMAGE ? "Jelaskan gambar yang ingin dibuat..." :
+        mode === ViewType.VIDEO ? "Jelaskan video yang ingin dibuat..." :
+        "Tanyakan apa saja, atau lampirkan gambar...";
         
     const canUpload = mode !== ViewType.IMAGE;
 

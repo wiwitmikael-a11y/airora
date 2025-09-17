@@ -3,6 +3,7 @@ import { ViewType } from "./types";
 export const TEXT_MODEL_ID = 'gemini-2.5-flash';
 export const IMAGE_MODEL_ID = 'imagen-4.0-generate-001';
 export const IMAGE_EDIT_MODEL_ID = 'gemini-2.5-flash-image-preview';
+export const VIDEO_MODEL_ID = 'veo-2.0-generate-001';
 
 export const SYSTEM_INSTRUCTIONS: Record<string, string> = {
   [ViewType.CHAT]: "You are a helpful, general-purpose AI assistant named AIRORA.",
@@ -16,6 +17,7 @@ export const WELCOME_MESSAGES: Record<string, string> = {
   [ViewType.POETIC]: "Setiap kata adalah kuas, setiap ide adalah kanvas. Dalam Mode Puitis, kita melukis dengan imajinasi. Inspirasi apa yang Anda cari, atau sajak apa yang tersembunyi dalam kode saya?",
   [ViewType.CODE]: "Mode Kode: siap untuk kompilasi. Logika, sintaks, dan arsitektur adalah bahasa kita. Algoritma apa yang perlu kita pecahkan, atau ingin tahu tentang bahasa 'Synapse' yang membentuk saya?",
   [ViewType.CHAT]: "Halo! Saya AIRORA, siap membantu. Ada yang bisa saya bantu hari ini?",
+  [ViewType.VIDEO]: "Mode Video diaktifkan. Jelaskan adegan yang ingin Anda hidupkan. Anda juga dapat mengunggah gambar awal. Film bergerak apa yang akan kita buat?",
 };
 
 
