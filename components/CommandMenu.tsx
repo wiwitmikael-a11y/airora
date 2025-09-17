@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewType } from '../types';
-import { TextIcon, ImageIcon, TrashIcon, CloseIcon } from './icons/Icons';
+import { LightbulbIcon, FeatherIcon, CodeBracketIcon, ImageIcon, TrashIcon, CloseIcon } from './icons/Icons';
 
 interface CommandMenuProps {
     onSelectView: (view: ViewType) => void;
@@ -10,15 +10,17 @@ interface CommandMenuProps {
 
 const CommandMenu: React.FC<CommandMenuProps> = ({ onSelectView, onEndSession, onClose }) => {
     const menuItems = [
-        { icon: TextIcon, label: 'Chat', action: () => onSelectView(ViewType.CHAT) },
-        { icon: ImageIcon, label: 'Image', action: () => onSelectView(ViewType.IMAGE) },
+        { icon: LightbulbIcon, label: 'Visionary Mode', action: () => onSelectView(ViewType.VISIONARY) },
+        { icon: FeatherIcon, label: 'Poetic Mode', action: () => onSelectView(ViewType.POETIC) },
+        { icon: CodeBracketIcon, label: 'Code Mode', action: () => onSelectView(ViewType.CODE) },
+        { icon: ImageIcon, label: 'Image Generator', action: () => onSelectView(ViewType.IMAGE) },
         { icon: TrashIcon, label: 'End Session', action: onEndSession },
     ];
 
     return (
-        <div className="absolute bottom-20 w-11/12 max-w-[290px] sm:w-64 sm:max-w-none left-1/2 -translate-x-1/2 glass-glow rounded-xl p-2 animate-fade-in">
+        <div className="absolute bottom-20 w-64 left-1/2 -translate-x-1/2 glass-glow rounded-xl p-2 animate-fade-in">
             <div className="flex justify-between items-center mb-2 px-2">
-                 <p className="text-xs text-gray-400 font-semibold">COMMANDS</p>
+                 <p className="text-xs text-gray-400 font-semibold tracking-wider uppercase">Select Mode</p>
                  <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-700/50">
                     <CloseIcon className="w-4 h-4 text-gray-400"/>
                  </button>

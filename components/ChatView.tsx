@@ -1,17 +1,17 @@
 import React, { useEffect, useRef } from 'react';
-import { ChatMessage } from '../types';
+import { ChatMessage, ViewType } from '../types';
 import Message from './Message';
 import InputBar from './InputBar';
-import { ViewType } from '../types';
 
 interface ChatViewProps {
     messages: ChatMessage[];
     isProcessing: boolean;
-    onSendMessage: (prompt: string) => void;
+    onSendMessage: (prompt: string, image?: ChatMessage['uploadedImage']) => void;
     isAnimatingOut: boolean;
+    viewType: ViewType;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ messages, isProcessing, onSendMessage, isAnimatingOut }) => {
+const ChatView: React.FC<ChatViewProps> = ({ messages, isProcessing, onSendMessage, isAnimatingOut, viewType }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -25,7 +25,7 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, isProcessing, onSendMessa
     const animationClass = isAnimatingOut ? 'animate-fly-out' : 'animate-fly-in';
 
     return (
-        <div className={`w-full h-[85%] max-w-5xl flex flex-col glass-glow rounded-3xl p-4 mb-6 ${animationClass}`}>
+        <div className={`w-full h-full max-w-5xl flex flex-col glass-glow rounded-3xl p-4 ${animationClass}`}>
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-6">
                 {messages.map((msg) => (
                     <Message key={msg.id} message={msg} />
@@ -36,7 +36,7 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, isProcessing, onSendMessa
                 <InputBar 
                     onSendMessage={onSendMessage}
                     isProcessing={isProcessing}
-                    mode={ViewType.CHAT as any} // Cast needed as ModelType is structurally different now
+                    mode={viewType}
                 />
             </div>
         </div>
