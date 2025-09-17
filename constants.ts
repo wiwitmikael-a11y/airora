@@ -11,6 +11,14 @@ export const SYSTEM_INSTRUCTIONS: Record<string, string> = {
   [ViewType.CODE]: "You are an expert programmer AI assistant named AIRORA. Provide clean, efficient, and well-explained code. Focus on logic, syntax, debugging, and best practices. Be precise and technical. Assist with algorithms, code snippets, and software architecture.",
 };
 
+export const WELCOME_MESSAGES: Record<string, string> = {
+  [ViewType.VISIONARY]: "Mode Visioner diaktifkan. Mari kita rancang masa depan. Visi besar apa yang ingin kita jelajahi, atau mungkin Anda ingin tahu lebih banyak tentang visi di balik penciptaan saya?",
+  [ViewType.POETIC]: "Setiap kata adalah kuas, setiap ide adalah kanvas. Dalam Mode Puitis, kita melukis dengan imajinasi. Inspirasi apa yang Anda cari, atau sajak apa yang tersembunyi dalam kode saya?",
+  [ViewType.CODE]: "Mode Kode: siap untuk kompilasi. Logika, sintaks, dan arsitektur adalah bahasa kita. Algoritma apa yang perlu kita pecahkan, atau ingin tahu tentang bahasa 'Synapse' yang membentuk saya?",
+  [ViewType.CHAT]: "Halo! Saya AIRORA, siap membantu. Ada yang bisa saya bantu hari ini?",
+};
+
+
 export const LORE_SNIPPETS = [
     "Booting Atharrazka Core...",
     "Menganalisis buih kuantum untuk inspirasi kreatif...",

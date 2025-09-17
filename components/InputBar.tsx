@@ -60,8 +60,8 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
     }, [prompt]);
 
     const placeholderText = mode === ViewType.IMAGE 
-        ? "Describe an image to generate..."
-        : "Ask me anything, or attach an image...";
+        ? "Jelaskan gambar yang ingin dibuat..."
+        : "Tanyakan apa saja, atau lampirkan gambar...";
         
     const canUpload = mode !== ViewType.IMAGE;
 
@@ -81,26 +81,24 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
                 </div>
             )}
             <div className="relative flex items-end gap-2">
-                {canUpload && (
-                    <div className="flex-shrink-0">
-                         <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            accept="image/*"
-                            className="hidden"
-                        />
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isProcessing}
-                            className="w-13 h-13 flex items-center justify-center rounded-2xl bg-gray-800/50 border border-gray-700 text-gray-400 hover:text-white transition-colors"
-                            aria-label="Attach image"
-                            style={{padding: '13px'}}
-                        >
-                            <PaperclipIcon className="w-6 h-6" />
-                        </button>
-                    </div>
-                )}
+                <div className="flex-shrink-0">
+                     <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept="image/*"
+                        className="hidden"
+                    />
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isProcessing || !canUpload}
+                        className={`w-13 h-13 flex items-center justify-center rounded-2xl bg-gray-800/50 border border-gray-700 text-gray-400 transition-colors ${canUpload ? 'hover:text-white' : 'invisible pointer-events-none'}`}
+                        aria-label="Attach image"
+                        style={{padding: '13px'}}
+                    >
+                        <PaperclipIcon className="w-6 h-6" />
+                    </button>
+                </div>
                 <div className="relative flex-1">
                     <textarea
                         ref={textareaRef}

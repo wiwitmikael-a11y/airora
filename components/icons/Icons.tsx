@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export const AiroraLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -24,6 +25,33 @@ export const AiroraLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
             <path d="M 50 80 C 80 50, 120 50, 150 80" stroke="url(#aurora-gradient)" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.7"/>
              {/* Bottom arc */}
             <path d="M 60 180 Q 100 200, 140 180" stroke="rgba(0, 255, 255, 0.5)" strokeWidth="2" strokeLinecap="round" fill="none" />
+        </g>
+    </svg>
+);
+
+export const AtharrazkaCoreLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+         <defs>
+            <linearGradient id="aurora-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{stopColor: 'rgba(0, 255, 255, 1)', stopOpacity: 1}} />
+                <stop offset="100%" style={{stopColor: 'rgba(138, 43, 226, 1)', stopOpacity: 1}} />
+            </linearGradient>
+            <filter id="glow-core" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="7" result="coloredBlur"/>
+                <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+            </filter>
+        </defs>
+        <g filter="url(#glow-core)" opacity="0.9">
+            {/* Central glowing orb */}
+            <circle cx="100" cy="100" r="20" fill="url(#aurora-gradient)" />
+             {/* Quantum orbits */}
+            <ellipse cx="100" cy="100" rx="60" ry="30" stroke="url(#aurora-gradient)" strokeWidth="4" strokeDasharray="5 10" strokeLinecap="round" transform="rotate(45 100 100)" />
+            <ellipse cx="100" cy="100" rx="70" ry="40" stroke="url(#aurora-gradient)" strokeWidth="3" opacity="0.6" transform="rotate(-30 100 100)" />
+            <path d="M 40,150 Q 100,100 160,150" stroke="rgba(0, 255, 255, 0.5)" strokeWidth="2" fill="none" />
+            <path d="M 40,50 Q 100,100 160,50" stroke="rgba(138, 43, 226, 0.5)" strokeWidth="2" fill="none" />
         </g>
     </svg>
 );

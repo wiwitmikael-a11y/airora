@@ -52,7 +52,7 @@ const ImageView: React.FC<ImageViewProps> = ({ images, isProcessing, onSendMessa
                 {images.length === 0 && !isProcessing && (
                      <div className="flex flex-col items-center justify-center h-full text-gray-500">
                         <PlaceholderIcon className="w-24 h-24 mb-4" />
-                        <p>Generated images will appear here.</p>
+                        <p>Gambar yang dihasilkan akan muncul di sini.</p>
                     </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
