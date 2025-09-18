@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewType } from '../types';
-import { LightbulbIcon, FeatherIcon, CodeBracketIcon, ImageIcon, FilmIcon, TrashIcon, CloseIcon } from './icons/Icons';
+import { ChatAltIcon, LightbulbIcon, FeatherIcon, CodeBracketIcon, ImageIcon, VideoCameraIcon, TrashIcon, CloseIcon, GlobeAltIcon } from './icons/Icons';
 
 interface CommandMenuProps {
     onSelectView: (view: ViewType) => void;
@@ -10,11 +10,13 @@ interface CommandMenuProps {
 
 const CommandMenu: React.FC<CommandMenuProps> = ({ onSelectView, onEndSession, onClose }) => {
     const menuItems = [
+        { icon: ChatAltIcon, label: 'General Chat', action: () => onSelectView(ViewType.CHAT) },
+        { icon: GlobeAltIcon, label: 'Researcher Mode', action: () => onSelectView(ViewType.RESEARCHER) },
         { icon: LightbulbIcon, label: 'Visionary Mode', action: () => onSelectView(ViewType.VISIONARY) },
         { icon: FeatherIcon, label: 'Poetic Mode', action: () => onSelectView(ViewType.POETIC) },
         { icon: CodeBracketIcon, label: 'Code Mode', action: () => onSelectView(ViewType.CODE) },
         { icon: ImageIcon, label: 'Image Generator', action: () => onSelectView(ViewType.IMAGE) },
-        { icon: FilmIcon, label: 'Video Generator', action: () => onSelectView(ViewType.VIDEO) },
+        { icon: VideoCameraIcon, label: 'Video Generator', action: () => onSelectView(ViewType.VIDEO) },
         { icon: TrashIcon, label: 'End Session', action: onEndSession },
     ];
 

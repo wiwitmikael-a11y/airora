@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ViewType, ChatMessage, MessageRole, GeneratedImage, ImageForEditing, GeneratedVideo } from './types';
 import { TEXT_MODEL_ID, IMAGE_MODEL_ID, IMAGE_EDIT_MODEL_ID, VIDEO_MODEL_ID, LORE_SNIPPETS, SYSTEM_INSTRUCTIONS, WELCOME_MESSAGES } from './constants';
@@ -157,7 +156,7 @@ const App: React.FC = () => {
     const handleViewChange = (newView: ViewType) => {
         setIsMenuOpen(false);
         const startViewChange = () => {
-            if (Object.values(ViewType).includes(newView) && ![ViewType.IMAGE, ViewType.VIDEO, ViewType.NONE].includes(newView)) {
+            if (Object.values(ViewType).includes(newView) && ![ViewType.IMAGE, ViewType.VIDEO, ViewType.NONE, ViewType.RESEARCHER].includes(newView)) {
                 const newChat = ai.chats.create({
                     model: TEXT_MODEL_ID,
                     config: { systemInstruction: SYSTEM_INSTRUCTIONS[newView] },
@@ -167,6 +166,14 @@ const App: React.FC = () => {
                     id: 'welcome-message',
                     role: MessageRole.AI,
                     content: WELCOME_MESSAGES[newView] || "Halo! Ada yang bisa saya bantu?",
+                };
+                setMessages([welcomeMessage]);
+            } else if (newView === ViewType.RESEARCHER) {
+                 setChatSession(null);
+                 const welcomeMessage: ChatMessage = {
+                    id: 'welcome-message',
+                    role: MessageRole.AI,
+                    content: WELCOME_MESSAGES[newView] || "Researcher mode ready.",
                 };
                 setMessages([welcomeMessage]);
             } else {
@@ -305,6 +312,26 @@ const App: React.FC = () => {
             } catch (error) {
                 console.error("Chat Error:", error);
                 const errorContent = error instanceof Error ? error.message : "An unknown error occurred.";
+                setMessages(prev => prev.map(msg => msg.id === aiMessage.id ? { ...msg, content: `Error: ${errorContent}`, isLoading: false } : msg));
+            }
+        } else if (activeView === ViewType.RESEARCHER) {
+            const userMessage: ChatMessage = { id: Date.now().toString(), role: MessageRole.USER, content: prompt };
+            const aiMessage: ChatMessage = { id: (Date.now() + 1).toString(), role: MessageRole.AI, content: '', isLoading: true };
+            setMessages(prev => [...prev, userMessage, aiMessage]);
+    
+            try {
+                const response = await ai.models.generateContent({
+                    model: TEXT_MODEL_ID,
+                    contents: [prompt],
+                    config: {
+                        tools: [{ urlContext: {} }],
+                    },
+                });
+                const responseText = response.text;
+                setMessages(prev => prev.map(msg => msg.id === aiMessage.id ? { ...msg, content: responseText, isLoading: false } : msg));
+            } catch (error) {
+                console.error("Researcher Mode Error:", error);
+                const errorContent = error instanceof Error ? error.message : "An unknown error occurred while researching.";
                 setMessages(prev => prev.map(msg => msg.id === aiMessage.id ? { ...msg, content: `Error: ${errorContent}`, isLoading: false } : msg));
             }
         } else if (activeView === ViewType.IMAGE) {
@@ -457,10 +484,10 @@ const App: React.FC = () => {
                 </div>
             )}
             
-            <div className="w-full max-w-5xl flex justify-center items-center gap-4 md:gap-6 px-4 absolute bottom-4 md:bottom-8 z-50">
+            <div className="w-full max-w-5xl flex justify-center items-center gap-12 md:gap-20 px-4 absolute bottom-4 md:bottom-8 z-50">
                 <div className="flex-1 flex justify-end">
                     <div className="flex items-center gap-2 text-white/70 transition-opacity duration-300">
-                        <AiroraLogo className="w-9 h-9 md:w-10 md:h-10" />
+                        <AiroraLogo className="w-6 h-6 md:w-7 md:h-7" />
                         <span className="font-orbitron text-xs md:text-sm font-bold tracking-wider">AIRORA</span>
                     </div>
                 </div>
@@ -468,7 +495,7 @@ const App: React.FC = () => {
                 <div className="relative">
                     <button
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        className="w-16 h-16 rounded-full glass-glow flex items-center justify-center transition-transform duration-300 hover:scale-110 animate-command-pulse"
+                        className={`w-16 h-16 rounded-full glass-glow flex items-center justify-center transition-transform duration-300 hover:scale-110 ${isMenuOpen ? 'animate-command-pulse-active' : 'animate-command-pulse'}`}
                         aria-label="Open Command Menu"
                     >
                         <SparklesIcon className="w-8 h-8"/>
@@ -480,7 +507,7 @@ const App: React.FC = () => {
 
                 <div className="flex-1 flex justify-start">
                      <div className="flex items-center gap-2 text-white/70 transition-opacity duration-300">
-                        <AtharrazkaCoreLogo className="w-9 h-9 md:w-10 md:h-10" />
+                        <AtharrazkaCoreLogo className="w-6 h-6 md:w-7 md:h-7" />
                         <span className="font-orbitron text-xs md:text-sm font-bold tracking-wider">Atharrazka Core</span>
                     </div>
                 </div>

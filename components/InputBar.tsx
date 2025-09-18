@@ -62,9 +62,10 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
     const placeholderText = 
         mode === ViewType.IMAGE ? "Jelaskan gambar yang ingin dibuat..." :
         mode === ViewType.VIDEO ? "Jelaskan video yang ingin dibuat..." :
+        mode === ViewType.RESEARCHER ? "Enter a prompt with URLs to analyze..." :
         "Tanyakan apa saja, atau lampirkan gambar...";
         
-    const canUpload = mode !== ViewType.IMAGE;
+    const canUpload = ![ViewType.IMAGE, ViewType.RESEARCHER].includes(mode);
 
     return (
         <div className="w-full relative">

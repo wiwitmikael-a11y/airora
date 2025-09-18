@@ -8,7 +8,7 @@
     <script src="https://js.puter.com/v2/"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;700&family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
     <style>
         .font-orbitron {
             font-family: 'Orbitron', sans-serif;
@@ -16,6 +16,7 @@
 
         body {
             /* Use a very dark purple to blend with the aurora instead of pure black */
+            font-family: 'Exo 2', sans-serif;
             background-color: #0a0112;
             color: #e5e5e5;
             overflow: hidden;
@@ -148,8 +149,19 @@
             }
         }
         .animate-command-pulse {
-            /* This animation will override the box-shadow from .glass-glow */
             animation: command-button-pulse 3s infinite ease-in-out;
+        }
+
+        @keyframes command-button-pulse-active {
+            0%, 100% {
+                box-shadow: 0 0 25px rgba(0, 255, 255, 0.6), 0 0 40px rgba(138, 43, 226, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 45px rgba(0, 255, 255, 1), 0 0 70px rgba(138, 43, 226, 0.8);
+            }
+        }
+        .animate-command-pulse-active {
+            animation: command-button-pulse-active 1.5s infinite ease-in-out;
         }
     </style>
 <script type="importmap">

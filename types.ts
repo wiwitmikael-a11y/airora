@@ -7,6 +7,7 @@ export enum ViewType {
   VISIONARY = 'visionary',
   POETIC = 'poetic',
   CODE = 'code',
+  RESEARCHER = 'researcher',
 }
 
 // Defines the role of a message sender.

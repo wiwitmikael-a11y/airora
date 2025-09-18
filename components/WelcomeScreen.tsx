@@ -7,7 +7,7 @@ interface WelcomeScreenProps {
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onBegin }) => {
     return (
-        <div className="h-screen w-screen flex flex-col items-center justify-center text-center p-4 z-10 animate-fade-in">
+        <div className="h-screen w-screen flex flex-col items-center justify-center text-center p-4 z-10 animate-fade-in relative">
             <AiroraLogo className="w-48 h-48 md:w-64 md:h-64" />
             <h1 className="font-orbitron text-4xl md:text-6xl font-bold text-white tracking-widest my-4 animate-text-glow">
                 AIRORA
@@ -22,11 +22,14 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onBegin }) => {
             >
                 Begin Journey
             </button>
-            <div className="mt-8 text-center animate-fade-in" style={{animationDelay: '0.3s'}}>
-                <p className="text-sm font-semibold text-white animate-text-glow">
+            <p className="text-xs text-gray-400 max-w-md mx-auto mt-6">
+                AIRORA dapat menampilkan informasi yang tidak akurat. Aplikasi ini dirancang hanya untuk tujuan edukasi dan eksperimental.
+            </p>
+            <div className="absolute bottom-8 left-0 right-0 text-center animate-fade-in" style={{animationDelay: '0.3s'}}>
+                <p className="font-orbitron text-sm font-semibold text-white animate-text-glow">
                     Powered by Atharrazka Core
                 </p>
-                <p className="text-xs text-gray-500 tracking-widest mt-2">
+                <p className="font-orbitron text-xs text-gray-500 tracking-widest mt-2">
                     Alpha Build v.01
                 </p>
             </div>
