@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ViewType, ChatMessage, MessageRole, GeneratedImage, ImageForEditing, GeneratedVideo } from './types';
 import { TEXT_MODEL_ID, IMAGE_MODEL_ID, IMAGE_EDIT_MODEL_ID, VIDEO_MODEL_ID, LORE_SNIPPETS, SYSTEM_INSTRUCTIONS, WELCOME_MESSAGES } from './constants';
@@ -204,6 +205,7 @@ const App: React.FC = () => {
         setIsProcessing(true);
         playSound('receive_start');
 
+        let fullResponse = '';
         try {
             const chatSession = chatSessionRefs.current[activeView];
             if (!chatSession) throw new Error("Chat session not initialized.");
@@ -222,17 +224,24 @@ const App: React.FC = () => {
 
             const stream = await chatSession.sendMessageStream({ message: parts });
             
-            let fullResponse = '';
             for await (const chunk of stream) {
                 const chunkText = chunk.text;
                 fullResponse += chunkText;
                 setAllChatMessages(prev => ({
                     ...prev,
                     [activeView]: prev[activeView].map(msg =>
-                        msg.id === aiMessageId ? { ...msg, content: fullResponse, isLoading: false } : msg
+                        msg.id === aiMessageId ? { ...msg, content: fullResponse, isLoading: true } : msg
                     )
                 }));
             }
+            
+            // Final update to set isLoading to false
+            setAllChatMessages(prev => ({
+                ...prev,
+                [activeView]: prev[activeView].map(msg =>
+                    msg.id === aiMessageId ? { ...msg, isLoading: false } : msg
+                )
+            }));
 
         } catch (error) {
             console.error('Error sending message:', error);

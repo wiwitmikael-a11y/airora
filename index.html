@@ -185,6 +185,19 @@
         .animate-rgb-glow {
             animation: rgb-glow-pulse 2.5s infinite linear;
         }
+        
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background-color: #9ca3af; /* gray-400 */
+            animation: blink 1s step-end infinite;
+            vertical-align: bottom;
+            margin-left: 2px;
+        }
     </style>
 <script type="importmap">
 {

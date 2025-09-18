@@ -1,10 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChatMessage, MessageRole } from '../types';
 import { UserIcon, AiroraLogo, CopyIcon, CheckIcon, ShareIcon } from './icons/Icons';
 import { playSound } from '../sound';
 
 const Message: React.FC<{ message: ChatMessage }> = ({ message }) => {
     const [copied, setCopied] = useState(false);
+    const [displayedContent, setDisplayedContent] = useState('');
+    const { content, isLoading, role, id } = message;
+    const isUser = role === MessageRole.USER;
+
+    // Reset displayed content when the message ID changes to handle new messages correctly.
+    useEffect(() => {
+        if (isUser) {
+            setDisplayedContent(content);
+        } else {
+            setDisplayedContent('');
+        }
+    }, [id, content, isUser]);
+
+    // Typewriter effect for AI messages
+    useEffect(() => {
+        if (isUser) return;
+
+        // If the displayed content is shorter than the full content, type the next character.
+        if (displayedContent.length < content.length) {
+            const timeoutId = setTimeout(() => {
+                setDisplayedContent(content.slice(0, displayedContent.length + 1));
+            }, 15); // Adjust typing speed here (in ms)
+            return () => clearTimeout(timeoutId);
+        }
+    }, [content, displayedContent, isUser]);
+
 
     const handleCopy = () => {
         playSound('click');
@@ -37,7 +63,9 @@ const Message: React.FC<{ message: ChatMessage }> = ({ message }) => {
         }
     };
 
-    const isUser = message.role === MessageRole.USER;
+    const initialLoading = isLoading && !content;
+    // Show cursor if loading is in progress OR if the text is still typing out after loading completes.
+    const showCursor = !isUser && (isLoading || (content && displayedContent.length < content.length));
 
     return (
         <div className={`flex items-start gap-4 ${isUser ? 'justify-end' : ''}`}>
@@ -54,18 +82,21 @@ const Message: React.FC<{ message: ChatMessage }> = ({ message }) => {
                         </div>
                     )}
                     <div className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
-                        {message.isLoading ? (
+                        {initialLoading ? (
                             <div className="flex items-center space-x-1.5">
                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
                             </div>
                         ) : (
-                            message.content
+                           <>
+                                {displayedContent}
+                                {showCursor && <span className="typing-cursor"></span>}
+                           </>
                         )}
                     </div>
                 </div>
-                {!isUser && !message.isLoading && message.content && (
+                {!isUser && !isLoading && message.content && (
                      <div className="absolute -bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                             onClick={handleCopy}
