@@ -1,5 +1,6 @@
 import React from 'react';
 import { AiroraLogo } from './icons/Icons';
+import { playSound } from '../sound';
 
 interface WelcomeScreenProps {
     onBegin: () => void;
@@ -18,7 +19,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onBegin }) => {
             </p>
             <button
                 onClick={onBegin}
-                className="px-8 py-3 rounded-full glass-glow font-semibold text-white transition-all duration-300 hover:scale-105 hover:shadow-cyan-400/30"
+                onMouseEnter={() => playSound('hover')}
+                className="px-8 py-3 rounded-full glass-glow font-semibold text-white transition-all duration-300 hover:scale-105 animate-begin-journey-pulse"
             >
                 Begin Journey
             </button>

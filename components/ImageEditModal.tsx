@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { CloseIcon, SparklesIcon } from './icons/Icons';
 import { ImageForEditing } from '../types';
+import { playSound } from '../sound';
 
 interface ImageEditModalProps {
     image: ImageForEditing;
@@ -25,6 +27,7 @@ const ImageEditModal: React.FC<ImageEditModalProps> = ({ image, onClose, onEdit,
 
     const handleSubmit = () => {
         if (prompt.trim() && !isProcessing) {
+            playSound('send');
             onEdit(image, prompt);
             onClose();
         }
@@ -49,21 +52,25 @@ const ImageEditModal: React.FC<ImageEditModalProps> = ({ image, onClose, onEdit,
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         placeholder="Describe your edits... (e.g., add a hat)"
-                        className="w-full bg-gray-800/50 border border-gray-700 rounded-xl py-3 pl-4 pr-14 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500/80"
+                        className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg py-2 px-4 pr-12 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500/80"
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
                         disabled={isProcessing}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                     />
                     <button
                         onClick={handleSubmit}
+                        onMouseEnter={() => !isProcessing && prompt.trim() && playSound('hover')}
                         disabled={isProcessing || !prompt.trim()}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-tr from-teal-500 to-purple-600 text-white transition-all duration-300 hover:scale-110 disabled:opacity-50 disabled:hover:scale-100"
-                        aria-label="Generate edit"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-gradient-to-tr from-teal-500 to-purple-600 text-white transition-all duration-300 hover:scale-110 disabled:opacity-50 disabled:hover:scale-100"
+                        aria-label="Submit edit"
                     >
-                        <SparklesIcon className="w-5 h-5"/>
+                        {isProcessing ? (
+                            <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+                        ) : (
+                            <SparklesIcon className="w-5 h-5" />
+                        )}
                     </button>
                 </div>
-
-                <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors">
+                <button onClick={() => { playSound('close'); onClose(); }} onMouseEnter={() => playSound('hover')} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors">
                     <CloseIcon className="w-6 h-6 text-gray-400"/>
                 </button>
             </div>

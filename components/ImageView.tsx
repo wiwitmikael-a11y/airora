@@ -5,6 +5,7 @@ import { ViewType } from '../types';
 import { ImageIcon as PlaceholderIcon, EditIcon, GridIcon, BookOpenIcon } from './icons/Icons';
 import ImageModal from './ImageModal';
 import ImageEditModal from './ImageEditModal';
+import { playSound } from '../sound';
 
 const getBase64FromImageUrl = async (url: string): Promise<{base64: string, mimeType: string}> => {
     const response = await fetch(url);
@@ -35,9 +36,10 @@ const ImageView: React.FC<ImageViewProps> = ({ images, isProcessing, onSendMessa
     const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
     const [imageToEdit, setImageToEdit] = useState<ImageForEditing | null>(null);
 
-    const animationClass = isAnimatingOut ? 'animate-fly-out' : 'animate-fly-in';
+    const animationClass = isAnimatingOut ? 'animate-recede' : 'animate-emerge';
 
     const handleEditClick = async (image: GeneratedImage) => {
+        playSound('click');
         try {
             const { base64, mimeType } = await getBase64FromImageUrl(image.imageUrl);
             setImageToEdit({ ...image, base64, mimeType });
@@ -45,6 +47,17 @@ const ImageView: React.FC<ImageViewProps> = ({ images, isProcessing, onSendMessa
             console.error("Error preparing image for editing:", error);
         }
     };
+    
+    const handleVariationsClick = (prompt: string) => {
+        playSound('click');
+        onGenerateVariations(prompt);
+    };
+
+    const handleStoryPromptClick = (image: GeneratedImage) => {
+        playSound('click');
+        onUseAsStoryPrompt(image);
+    };
+
 
     return (
         <div className={`w-full h-full max-w-5xl flex flex-col glass-glow rounded-3xl p-4 ${animationClass}`}>
@@ -60,22 +73,25 @@ const ImageView: React.FC<ImageViewProps> = ({ images, isProcessing, onSendMessa
                         <div key={image.id} className="relative aspect-square bg-gray-900/50 rounded-lg overflow-hidden group">
                             {image.imageUrl ? (
                                 <>
-                                    <button onClick={() => setSelectedImage(image)} className="w-full h-full">
+                                    <button onClick={() => { playSound('click'); setSelectedImage(image); }} onMouseEnter={() => playSound('hover')} className="w-full h-full">
                                         <img src={image.imageUrl} alt={image.prompt} className="w-full h-full object-cover" />
                                     </button>
                                      <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button 
                                             onClick={() => handleEditClick(image)}
+                                            onMouseEnter={() => playSound('hover')}
                                             className="p-2 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-teal-500/50 transition-colors"
                                             aria-label="Edit image"
                                         > <EditIcon className="w-5 h-5"/> </button>
                                          <button 
-                                            onClick={() => onGenerateVariations(image.prompt)}
+                                            onClick={() => handleVariationsClick(image.prompt)}
+                                            onMouseEnter={() => playSound('hover')}
                                             className="p-2 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-blue-500/50 transition-colors"
                                             aria-label="Generate variations"
                                         > <GridIcon className="w-5 h-5"/> </button>
                                         <button 
-                                            onClick={() => onUseAsStoryPrompt(image)}
+                                            onClick={() => handleStoryPromptClick(image)}
+                                            onMouseEnter={() => playSound('hover')}
                                             className="p-2 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-purple-500/50 transition-colors"
                                             aria-label="Use as story prompt"
                                         > <BookOpenIcon className="w-5 h-5"/> </button>
@@ -95,6 +111,9 @@ const ImageView: React.FC<ImageViewProps> = ({ images, isProcessing, onSendMessa
             </div>
             <div className="mt-4 flex-shrink-0">
                 <InputBar onSendMessage={onSendMessage} isProcessing={isProcessing} mode={ViewType.IMAGE} />
+                <p className="text-[10px] md:text-xs text-gray-500 text-left mt-2 px-2">
+                    AIRORA dapat menampilkan informasi yang tidak akurat. Aplikasi ini dirancang hanya untuk tujuan edukasi dan eksperimental.
+                </p>
             </div>
             {selectedImage && (
                 <ImageModal

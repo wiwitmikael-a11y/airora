@@ -1,6 +1,7 @@
 import React, { useState, KeyboardEvent, useEffect, useRef } from 'react';
 import { SendIcon, PaperclipIcon, CloseIcon } from './icons/Icons';
 import { ViewType, ChatMessage } from '../types';
+import { playSound } from '../sound';
 
 interface InputBarProps {
     onSendMessage: (prompt: string, image?: ChatMessage['uploadedImage']) => void;
@@ -27,6 +28,7 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
 
     const handleSubmit = () => {
         if ((prompt.trim() || imageFile) && !isProcessing) {
+            playSound('send');
             const uploadedImage = imageFile && imagePreview
                 ? { url: imagePreview, mimeType: imageFile.type }
                 : undefined;
@@ -40,6 +42,7 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
+            playSound('click');
             setImageFile(file);
         }
     };
@@ -74,7 +77,8 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
                     <div className="relative">
                         <img src={imagePreview} alt="Preview" className="h-20 w-auto rounded-md" />
                         <button 
-                            onClick={() => setImageFile(null)}
+                            onClick={() => { playSound('click'); setImageFile(null); }}
+                            onMouseEnter={() => playSound('hover')}
                             className="absolute -top-2 -right-2 bg-gray-700 rounded-full p-0.5 text-white"
                         >
                             <CloseIcon className="w-4 h-4"/>
@@ -93,6 +97,7 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
                     />
                     <button
                         onClick={() => fileInputRef.current?.click()}
+                        onMouseEnter={() => canUpload && playSound('hover')}
                         disabled={isProcessing || !canUpload}
                         className={`w-13 h-13 flex items-center justify-center rounded-2xl bg-gray-800/50 border border-gray-700 text-gray-400 transition-colors ${canUpload ? 'hover:text-white' : 'invisible pointer-events-none'}`}
                         aria-label="Attach image"
@@ -115,6 +120,7 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
                     />
                     <button
                         onClick={handleSubmit}
+                        onMouseEnter={() => !isProcessing && (prompt.trim() || imageFile) && playSound('hover')}
                         disabled={isProcessing || (!prompt.trim() && !imageFile)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-tr from-teal-500 to-purple-600 text-white transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-teal-500/30 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                         aria-label="Send message"

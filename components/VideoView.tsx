@@ -4,6 +4,7 @@ import InputBar from './InputBar';
 import { ViewType } from '../types';
 import { FilmIcon as PlaceholderIcon } from './icons/Icons';
 import VideoModal from './VideoModal';
+import { playSound } from '../sound';
 
 interface VideoViewProps {
     videos: GeneratedVideo[];
@@ -40,7 +41,7 @@ const VideoCard: React.FC<{ video: GeneratedVideo, onClick: () => void }> = ({ v
         <div className="relative aspect-video bg-gray-900/50 rounded-lg overflow-hidden group">
             {video.status === 'completed' && video.videoUrl ? (
                 <>
-                    <button onClick={onClick} className="w-full h-full">
+                    <button onClick={onClick} onMouseEnter={() => playSound('hover')} className="w-full h-full">
                         <video src={video.videoUrl} className="w-full h-full object-cover" loop autoPlay muted playsInline />
                     </button>
                     <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -77,7 +78,7 @@ const VideoCard: React.FC<{ video: GeneratedVideo, onClick: () => void }> = ({ v
 
 const VideoView: React.FC<VideoViewProps> = ({ videos, isProcessing, onGenerateVideo, isAnimatingOut }) => {
     const [selectedVideo, setSelectedVideo] = useState<GeneratedVideo | null>(null);
-    const animationClass = isAnimatingOut ? 'animate-fly-out' : 'animate-fly-in';
+    const animationClass = isAnimatingOut ? 'animate-recede' : 'animate-emerge';
 
     return (
         <div className={`w-full h-full max-w-5xl flex flex-col glass-glow rounded-3xl p-4 ${animationClass}`}>
@@ -90,12 +91,15 @@ const VideoView: React.FC<VideoViewProps> = ({ videos, isProcessing, onGenerateV
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {videos.map((video) => (
-                        <VideoCard key={video.id} video={video} onClick={() => setSelectedVideo(video)} />
+                        <VideoCard key={video.id} video={video} onClick={() => { playSound('click'); setSelectedVideo(video); }} />
                     ))}
                 </div>
             </div>
             <div className="mt-4 flex-shrink-0">
                 <InputBar onSendMessage={onGenerateVideo} isProcessing={isProcessing} mode={ViewType.VIDEO} />
+                <p className="text-[10px] md:text-xs text-gray-500 text-left mt-2 px-2">
+                    AIRORA dapat menampilkan informasi yang tidak akurat. Aplikasi ini dirancang hanya untuk tujuan edukasi dan eksperimental.
+                </p>
             </div>
             {selectedVideo && (
                 <VideoModal

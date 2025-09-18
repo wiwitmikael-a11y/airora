@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { CloseIcon, DownloadIcon, CopyIcon, CheckIcon, ShareIcon } from './icons/Icons';
 import { GeneratedVideo } from '../types';
+import { playSound } from '../sound';
 
 interface VideoModalProps {
     video: GeneratedVideo;
@@ -20,12 +22,14 @@ const VideoModal: React.FC<VideoModalProps> = ({ video, onClose }) => {
     }, [onClose]);
 
     const handleCopy = () => {
+        playSound('click');
         navigator.clipboard.writeText(video.prompt);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
 
     const handleDownload = async () => {
+        playSound('click');
         if (!video.videoUrl) return;
         try {
             const response = await fetch(video.videoUrl);
@@ -57,6 +61,7 @@ const VideoModal: React.FC<VideoModalProps> = ({ video, onClose }) => {
     };
 
     const handleShare = async () => {
+        playSound('click');
         if (!video.videoUrl) return;
         if (navigator.share) {
             try {
@@ -96,22 +101,22 @@ const VideoModal: React.FC<VideoModalProps> = ({ video, onClose }) => {
                 <div className="flex-shrink-0 bg-gray-900/50 p-4 rounded-lg">
                     <p className="text-gray-300 text-sm mb-3">{video.prompt}</p>
                     <div className="flex flex-wrap items-center gap-2">
-                        <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 text-xs transition-colors">
+                        <button onClick={handleCopy} onMouseEnter={() => playSound('hover')} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 text-xs transition-colors">
                             {copied ? <CheckIcon className="w-4 h-4 text-teal-400" /> : <CopyIcon className="w-4 h-4" />}
                             <span>{copied ? 'Copied!' : 'Copy Prompt'}</span>
                         </button>
-                         <button onClick={handleDownload} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 text-xs transition-colors">
+                         <button onClick={handleDownload} onMouseEnter={() => playSound('hover')} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 text-xs transition-colors">
                             <DownloadIcon className="w-4 h-4" />
                             <span>Download</span>
                         </button>
-                        <button onClick={handleShare} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 text-xs transition-colors">
+                        <button onClick={handleShare} onMouseEnter={() => playSound('hover')} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 text-xs transition-colors">
                             <ShareIcon className="w-4 h-4" />
                             <span>Share</span>
                         </button>
                     </div>
                 </div>
 
-                <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors">
+                <button onClick={() => { playSound('close'); onClose(); }} onMouseEnter={() => playSound('hover')} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors">
                     <CloseIcon className="w-6 h-6 text-gray-400"/>
                 </button>
             </div>

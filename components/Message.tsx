@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { ChatMessage, MessageRole } from '../types';
 import { UserIcon, AiroraLogo, CopyIcon, CheckIcon, ShareIcon } from './icons/Icons';
+import { playSound } from '../sound';
 
 const Message: React.FC<{ message: ChatMessage }> = ({ message }) => {
     const [copied, setCopied] = useState(false);
 
     const handleCopy = () => {
+        playSound('click');
         navigator.clipboard.writeText(message.content);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
 
     const handleShare = async () => {
+        playSound('click');
         if (navigator.share) {
             try {
                 await navigator.share({
@@ -66,6 +69,7 @@ const Message: React.FC<{ message: ChatMessage }> = ({ message }) => {
                      <div className="absolute -bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                             onClick={handleCopy}
+                            onMouseEnter={() => playSound('hover')}
                             className="p-1.5 rounded-full bg-gray-700/50 hover:bg-gray-600/50 text-gray-400 transition-colors"
                             aria-label="Copy message"
                         >
@@ -73,6 +77,7 @@ const Message: React.FC<{ message: ChatMessage }> = ({ message }) => {
                         </button>
                         <button
                             onClick={handleShare}
+                            onMouseEnter={() => playSound('hover')}
                             className="p-1.5 rounded-full bg-gray-700/50 hover:bg-gray-600/50 text-gray-400 transition-colors"
                             aria-label="Share message"
                         >

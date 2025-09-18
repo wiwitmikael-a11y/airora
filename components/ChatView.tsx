@@ -22,7 +22,7 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, isProcessing, onSendMessa
         scrollToBottom();
     }, [messages]);
 
-    const animationClass = isAnimatingOut ? 'animate-fly-out' : 'animate-fly-in';
+    const animationClass = isAnimatingOut ? 'animate-recede' : 'animate-emerge';
 
     return (
         <div className={`w-full h-full max-w-5xl flex flex-col glass-glow rounded-3xl p-4 ${animationClass}`}>
@@ -38,6 +38,9 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, isProcessing, onSendMessa
                     isProcessing={isProcessing}
                     mode={viewType}
                 />
+                <p className="text-[10px] md:text-xs text-gray-500 text-left mt-2 px-2">
+                    AIRORA dapat menampilkan informasi yang tidak akurat. Aplikasi ini dirancang hanya untuk tujuan edukasi dan eksperimental.
+                </p>
             </div>
         </div>
     );
