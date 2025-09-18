@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 
 export const AiroraLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -149,7 +147,9 @@ export const CheckIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const ShareIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.195.025.39.044.588.05H11a2.25 2.25 0 012.25 2.25v.015c0 .537.213 1.03.567 1.397m-2.133 2.133V15.5a2.25 2.25 0 00-2.25-2.25H5.25m9.75 3.375l-3.375-3.375m0 0a2.25 2.25 0 013.182 0l3.375 3.375a2.25 2.25 0 01-3.182 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 6l-4-4-4 4" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15V2" />
     </svg>
 );
 
