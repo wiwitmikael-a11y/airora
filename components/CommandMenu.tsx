@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { ViewType } from '../types';
 import { 
-    ChatBubbleIcon, 
-    LightbulbIcon, 
+    ChatAltIcon, 
+    BeakerIcon, 
     FeatherIcon, 
     TerminalIcon, 
     ImageIcon, 
@@ -10,7 +11,7 @@ import {
     TrashIcon, 
     CloseIcon, 
     MagnifyingGlassIcon,
-    CogIcon,
+    WrenchScrewdriverIcon,
     SpeakerWaveIcon,
     SpeakerXMarkIcon
 } from './icons/Icons';
@@ -67,9 +68,9 @@ const CommandMenu: React.FC<CommandMenuProps> = ({ onSelectView, onEndSession, o
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     
     const menuItems = [
-        { icon: ChatBubbleIcon, label: 'General Chat', action: () => onSelectView(ViewType.CHAT) },
+        { icon: ChatAltIcon, label: 'General Chat', action: () => onSelectView(ViewType.CHAT) },
         { icon: MagnifyingGlassIcon, label: 'Researcher Mode', action: () => onSelectView(ViewType.RESEARCHER) },
-        { icon: LightbulbIcon, label: 'Visionary Mode', action: () => onSelectView(ViewType.VISIONARY) },
+        { icon: BeakerIcon, label: 'Visionary Mode', action: () => onSelectView(ViewType.VISIONARY) },
         { icon: FeatherIcon, label: 'Poetic Mode', action: () => onSelectView(ViewType.POETIC) },
         { icon: TerminalIcon, label: 'Code Mode', action: () => onSelectView(ViewType.CODE) },
         { icon: ImageIcon, label: 'Image Generator', action: () => onSelectView(ViewType.IMAGE) },
@@ -129,7 +130,7 @@ const CommandMenu: React.FC<CommandMenuProps> = ({ onSelectView, onEndSession, o
                     onMouseEnter={() => playSound('hover')}
                     className="w-full flex items-center text-left px-3 py-2 text-gray-200 rounded-md hover:bg-gray-700/50 transition-colors duration-200"
                 >
-                    <CogIcon className="w-5 h-5 mr-3" />
+                    <WrenchScrewdriverIcon className="w-5 h-5 mr-3" />
                     <span>Settings</span>
                 </button>
             </div>

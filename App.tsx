@@ -1,5 +1,4 @@
 
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ViewType, ChatMessage, MessageRole, GeneratedImage, ImageForEditing, GeneratedVideo } from './types';
 import { TEXT_MODEL_ID, IMAGE_MODEL_ID, IMAGE_EDIT_MODEL_ID, VIDEO_MODEL_ID, LORE_SNIPPETS, SYSTEM_INSTRUCTIONS, WELCOME_MESSAGES } from './constants';
@@ -41,12 +40,13 @@ const App: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isMuted, setIsMuted] = useState(getMutedState());
     
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    // State to hold all messages for all chat views
+    const [allChatMessages, setAllChatMessages] = useState<Record<string, ChatMessage[]>>({});
     const [images, setImages] = useState<GeneratedImage[]>([]);
     const [videos, setVideos] = useState<GeneratedVideo[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const chatSessionRef = useRef<Chat | null>(null);
+    const chatSessionRefs = useRef<Record<string, Chat | null>>({});
 
     const fileToGenerativePart = async (file: File): Promise<Part> => {
         const base64EncodedDataPromise = new Promise<string>((resolve) => {
@@ -64,25 +64,30 @@ const App: React.FC = () => {
         try {
             const savedSession = sessionStorage.getItem('airora_session');
             if (savedSession) {
-                const { activeView: savedView, messages: savedMessages, images: savedImages, videos: savedVideos } = JSON.parse(savedSession);
+                const { activeView: savedView, allChatMessages: savedChats, images: savedImages, videos: savedVideos } = JSON.parse(savedSession);
                 
                 if (savedView && savedView !== ViewType.NONE) {
                     setActiveView(savedView);
-                    setMessages(savedMessages || []);
+                    setAllChatMessages(savedChats || {});
                     setImages(savedImages || []);
                     setVideos(savedVideos || []);
                     
-                    if (isChatView(savedView) && ai) {
-                        chatSessionRef.current = ai.chats.create({
-                            model: TEXT_MODEL_ID,
-                            config: { systemInstruction: SYSTEM_INSTRUCTIONS[savedView] },
-                            history: (savedMessages || [])
-                                .filter((msg: ChatMessage) => !msg.isLoading && msg.id !== 'welcome')
-                                .map((msg: ChatMessage) => ({
-                                    role: msg.role === MessageRole.USER ? 'user' : 'model',
-                                    parts: [{ text: msg.content }]
-                                })),
-                        });
+                    // Re-initialize chat sessions from history
+                    if (savedChats && ai) {
+                       for (const [view, messages] of Object.entries(savedChats as Record<string, ChatMessage[]>)) {
+                           if (messages.length > 1) { // More than just the welcome message
+                               chatSessionRefs.current[view] = ai.chats.create({
+                                   model: TEXT_MODEL_ID,
+                                   config: { systemInstruction: SYSTEM_INSTRUCTIONS[view] },
+                                   history: messages
+                                       .filter((msg: ChatMessage) => !msg.isLoading && msg.id !== 'welcome')
+                                       .map((msg: ChatMessage) => ({
+                                           role: msg.role === MessageRole.USER ? 'user' : 'model',
+                                           parts: [{ text: msg.content }]
+                                       })),
+                               });
+                           }
+                       }
                     }
                     
                     setAppState('active');
@@ -99,7 +104,7 @@ const App: React.FC = () => {
             try {
                 const sessionData = {
                     activeView,
-                    messages,
+                    allChatMessages,
                     images,
                     videos
                 };
@@ -108,7 +113,7 @@ const App: React.FC = () => {
                 console.error("Failed to save session:", error);
             }
         }
-    }, [activeView, messages, images, videos, appState]);
+    }, [activeView, allChatMessages, images, videos, appState]);
 
 
     const handleBegin = () => {
@@ -124,18 +129,21 @@ const App: React.FC = () => {
         setIsMenuOpen(false);
 
         if (isChatView(newView)) {
-            setMessages([{ id: 'welcome', role: MessageRole.AI, content: WELCOME_MESSAGES[newView] }]);
-            if (ai) {
-                 chatSessionRef.current = ai.chats.create({
-                    model: TEXT_MODEL_ID,
-                    config: { systemInstruction: SYSTEM_INSTRUCTIONS[newView] },
-                });
+            // Initialize chat history for the view if it doesn't exist
+            if (!allChatMessages[newView]) {
+                 setAllChatMessages(prev => ({
+                    ...prev,
+                    [newView]: [{ id: 'welcome', role: MessageRole.AI, content: WELCOME_MESSAGES[newView] }]
+                }));
+                if (ai) {
+                     chatSessionRefs.current[newView] = ai.chats.create({
+                        model: TEXT_MODEL_ID,
+                        config: { systemInstruction: SYSTEM_INSTRUCTIONS[newView] },
+                    });
+                }
             }
-        } else {
-             setMessages([]); 
         }
-
-    }, []);
+    }, [allChatMessages]);
 
     const handleSelectView = useCallback((newView: ViewType) => {
         if (activeView === ViewType.NONE || activeView !== newView) {
@@ -157,11 +165,11 @@ const App: React.FC = () => {
         setTimeout(() => {
             setAppState('welcome');
             setActiveView(ViewType.NONE);
-            setMessages([]);
+            setAllChatMessages({});
             setImages([]);
             setVideos([]);
             setIsAnimatingOut(false);
-            chatSessionRef.current = null;
+            chatSessionRefs.current = {};
             sessionStorage.removeItem('airora_session');
         }, 500);
     };
@@ -176,7 +184,11 @@ const App: React.FC = () => {
             content: prompt,
             uploadedImage,
         };
-        setMessages(prev => [...prev, userMessage]);
+         setAllChatMessages(prev => ({
+            ...prev,
+            [activeView]: [...(prev[activeView] || []), userMessage]
+        }));
+
 
         const aiMessageId = `msg-${Date.now() + 1}`;
         const aiLoadingMessage: ChatMessage = {
@@ -185,12 +197,16 @@ const App: React.FC = () => {
             content: '',
             isLoading: true,
         };
-        setMessages(prev => [...prev, aiLoadingMessage]);
+        setAllChatMessages(prev => ({
+            ...prev,
+            [activeView]: [...(prev[activeView] || []), aiLoadingMessage]
+        }));
         setIsProcessing(true);
         playSound('receive_start');
 
         try {
-            if (!chatSessionRef.current) throw new Error("Chat session not initialized.");
+            const chatSession = chatSessionRefs.current[activeView];
+            if (!chatSession) throw new Error("Chat session not initialized.");
 
             const parts: Part[] = [];
             if (prompt && prompt.trim()) {
@@ -204,31 +220,33 @@ const App: React.FC = () => {
                  parts.push(imagePart);
             }
 
-            const stream = await chatSessionRef.current.sendMessageStream({ message: parts });
+            const stream = await chatSession.sendMessageStream({ message: parts });
             
             let fullResponse = '';
             for await (const chunk of stream) {
                 const chunkText = chunk.text;
                 fullResponse += chunkText;
-                setMessages(prev =>
-                    prev.map(msg =>
+                setAllChatMessages(prev => ({
+                    ...prev,
+                    [activeView]: prev[activeView].map(msg =>
                         msg.id === aiMessageId ? { ...msg, content: fullResponse, isLoading: false } : msg
                     )
-                );
+                }));
             }
 
         } catch (error) {
             console.error('Error sending message:', error);
-            setMessages(prev =>
-                prev.map(msg =>
+            setAllChatMessages(prev => ({
+                ...prev,
+                [activeView]: prev[activeView].map(msg =>
                     msg.id === aiMessageId ? { ...msg, content: 'Sorry, I encountered an error.', isLoading: false } : msg
                 )
-            );
+            }));
         } finally {
             setIsProcessing(false);
             playSound('receive_end');
         }
-    }, []);
+    }, [activeView]);
 
     const handleGenerateImage = useCallback(async (prompt: string) => {
         if (!prompt.trim()) return;
@@ -415,7 +433,7 @@ const App: React.FC = () => {
                     <>
                         {isChatView(activeView) && (
                             <ChatView
-                                messages={messages}
+                                messages={allChatMessages[activeView] || []}
                                 isProcessing={isProcessing}
                                 onSendMessage={handleSendMessage}
                                 isAnimatingOut={isAnimatingOut}
