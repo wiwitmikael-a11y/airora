@@ -5,28 +5,26 @@ import { playSound } from '../sound';
 
 const Message: React.FC<{ message: ChatMessage }> = ({ message }) => {
     const [copied, setCopied] = useState(false);
-    const [displayedContent, setDisplayedContent] = useState('');
-    const { content, isLoading, role, id } = message;
+
+    const [displayedContent, setDisplayedContent] = useState(
+        message.role === MessageRole.USER || !message.isLoading ? message.content : ''
+    );
+    
+    const { content, isLoading, role } = message;
     const isUser = role === MessageRole.USER;
 
-    // Reset displayed content when the message ID changes to handle new messages correctly.
     useEffect(() => {
         if (isUser) {
-            setDisplayedContent(content);
-        } else {
-            setDisplayedContent('');
-        }
-    }, [id, content, isUser]);
+            if (displayedContent !== content) {
+                setDisplayedContent(content);
+            }
+            return;
+        };
 
-    // Typewriter effect for AI messages
-    useEffect(() => {
-        if (isUser) return;
-
-        // If the displayed content is shorter than the full content, type the next character.
         if (displayedContent.length < content.length) {
             const timeoutId = setTimeout(() => {
                 setDisplayedContent(content.slice(0, displayedContent.length + 1));
-            }, 15); // Adjust typing speed here (in ms)
+            }, 15);
             return () => clearTimeout(timeoutId);
         }
     }, [content, displayedContent, isUser]);
@@ -51,20 +49,17 @@ const Message: React.FC<{ message: ChatMessage }> = ({ message }) => {
                 const err = error as Error;
                 if (err.name !== 'AbortError') {
                     console.error('Error sharing:', err);
-                    // Fallback to copy for other errors
                     handleCopy();
                     alert('Sharing failed, content copied to clipboard.');
                 }
             }
         } else {
-            // Fallback for browsers that don't support Web Share API
             handleCopy();
             alert('Sharing not supported, content copied to clipboard.');
         }
     };
 
     const initialLoading = isLoading && !content;
-    // Show cursor if loading is in progress OR if the text is still typing out after loading completes.
     const showCursor = !isUser && (isLoading || (content && displayedContent.length < content.length));
 
     return (
@@ -126,4 +121,12 @@ const Message: React.FC<{ message: ChatMessage }> = ({ message }) => {
     );
 };
 
-export default Message;
+const areMessagesEqual = (prevProps: { message: ChatMessage }, nextProps: { message: ChatMessage }) => {
+    return (
+        prevProps.message.id === nextProps.message.id &&
+        prevProps.message.content === nextProps.message.content &&
+        prevProps.message.isLoading === nextProps.message.isLoading
+    );
+};
+
+export default React.memo(Message, areMessagesEqual);

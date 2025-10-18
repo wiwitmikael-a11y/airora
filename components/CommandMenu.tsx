@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ViewType } from '../types';
 import { 
@@ -13,7 +12,8 @@ import {
     MagnifyingGlassIcon,
     WrenchScrewdriverIcon,
     SpeakerWaveIcon,
-    SpeakerXMarkIcon
+    SpeakerXMarkIcon,
+    MicrophoneIcon
 } from './icons/Icons';
 import { playSound } from '../sound';
 
@@ -68,6 +68,7 @@ const CommandMenu: React.FC<CommandMenuProps> = ({ onSelectView, onEndSession, o
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     
     const menuItems = [
+        { icon: MicrophoneIcon, label: 'Live Conversation', action: () => onSelectView(ViewType.LIVE) },
         { icon: ChatAltIcon, label: 'General Chat', action: () => onSelectView(ViewType.CHAT) },
         { icon: MagnifyingGlassIcon, label: 'Researcher Mode', action: () => onSelectView(ViewType.RESEARCHER) },
         { icon: BeakerIcon, label: 'Visionary Mode', action: () => onSelectView(ViewType.VISIONARY) },

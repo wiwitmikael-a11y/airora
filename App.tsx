@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ViewType, ChatMessage, MessageRole, GeneratedImage, ImageForEditing, GeneratedVideo } from './types';
 import { TEXT_MODEL_ID, IMAGE_MODEL_ID, IMAGE_EDIT_MODEL_ID, VIDEO_MODEL_ID, LORE_SNIPPETS, SYSTEM_INSTRUCTIONS, WELCOME_MESSAGES } from './constants';
@@ -7,6 +5,7 @@ import CommandMenu from './components/CommandMenu';
 import ChatView from './components/ChatView';
 import ImageView from './components/ImageView';
 import VideoView from './components/VideoView';
+import LiveView from './components/LiveView';
 import WelcomeScreen from './components/WelcomeScreen';
 import LoadingScreen from './components/LoadingScreen';
 import ConfigurationErrorScreen from './components/ConfigurationErrorScreen';
@@ -26,7 +25,8 @@ const getApiKey = (): string | undefined => {
 };
 
 const API_KEY = getApiKey();
-const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+// AI instance is now created on demand to ensure fresh API keys for certain models like Veo
+const getAiInstance = () => API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
 type AppState = 'welcome' | 'loading' | 'active';
 
@@ -72,6 +72,7 @@ const App: React.FC = () => {
                     setAllChatMessages(savedChats || {});
                     setImages(savedImages || []);
                     setVideos(savedVideos || []);
+                    const ai = getAiInstance();
                     
                     // Re-initialize chat sessions from history
                     if (savedChats && ai) {
@@ -130,12 +131,12 @@ const App: React.FC = () => {
         setIsMenuOpen(false);
 
         if (isChatView(newView)) {
-            // Initialize chat history for the view if it doesn't exist
             if (!allChatMessages[newView]) {
                  setAllChatMessages(prev => ({
                     ...prev,
                     [newView]: [{ id: 'welcome', role: MessageRole.AI, content: WELCOME_MESSAGES[newView] }]
                 }));
+                const ai = getAiInstance();
                 if (ai) {
                      chatSessionRefs.current[newView] = ai.chats.create({
                         model: TEXT_MODEL_ID,
@@ -235,7 +236,6 @@ const App: React.FC = () => {
                 }));
             }
             
-            // Final update to set isLoading to false
             setAllChatMessages(prev => ({
                 ...prev,
                 [activeView]: prev[activeView].map(msg =>
@@ -263,10 +263,11 @@ const App: React.FC = () => {
         playSound('receive_start');
 
         const tempImageId = `img-${Date.now()}`;
-        const tempImage: GeneratedImage = { id: tempImageId, prompt, imageUrl: '' };
+        const tempImage: GeneratedImage = { id: tempImageId, prompt, status: 'processing' };
         setImages(prev => [tempImage, ...prev]);
 
         try {
+            const ai = getAiInstance();
             if (!ai) throw new Error("AI client not initialized.");
             const response = await ai.models.generateImages({
                 model: IMAGE_MODEL_ID,
@@ -278,12 +279,12 @@ const App: React.FC = () => {
             const imageUrl = `data:image/png;base64,${base64Image}`;
 
             setImages(prev =>
-                prev.map(img => (img.id === tempImageId ? { ...img, imageUrl } : img))
+                prev.map(img => (img.id === tempImageId ? { ...img, imageUrl, status: 'completed' } : img))
             );
 
         } catch (error) {
             console.error('Error generating image:', error);
-            setImages(prev => prev.filter(img => img.id !== tempImageId));
+            setImages(prev => prev.map(img => img.id === tempImageId ? { ...img, status: 'failed' } : img));
         } finally {
             setIsProcessing(false);
             playSound('receive_end');
@@ -294,10 +295,11 @@ const App: React.FC = () => {
         setIsProcessing(true);
         playSound('receive_start');
         const tempImageId = `img-${Date.now()}`;
-        const tempImage: GeneratedImage = { id: tempImageId, prompt: `Edit: ${prompt}`, imageUrl: '' };
+        const tempImage: GeneratedImage = { id: tempImageId, prompt: `Edit: ${prompt}`, status: 'processing' };
         setImages(prev => [tempImage, ...prev]);
 
         try {
+            const ai = getAiInstance();
             if (!ai) throw new Error("AI client not initialized.");
 
             const imagePart = {
@@ -312,7 +314,7 @@ const App: React.FC = () => {
                 model: IMAGE_EDIT_MODEL_ID,
                 contents: { parts: [imagePart, textPart] },
                 config: {
-                    responseModalities: [Modality.IMAGE, Modality.TEXT],
+                    responseModalities: [Modality.IMAGE],
                 },
             });
 
@@ -321,7 +323,7 @@ const App: React.FC = () => {
                 const base64Image = imageContent.inlineData.data;
                 const imageUrl = `data:${imageContent.inlineData.mimeType};base64,${base64Image}`;
                  setImages(prev =>
-                    prev.map(img => (img.id === tempImageId ? { ...img, imageUrl } : img))
+                    prev.map(img => (img.id === tempImageId ? { ...img, imageUrl, status: 'completed' } : img))
                 );
             } else {
                  throw new Error("No image data in response.");
@@ -329,7 +331,7 @@ const App: React.FC = () => {
 
         } catch (error) {
             console.error('Error editing image:', error);
-            setImages(prev => prev.filter(img => img.id !== tempImageId));
+            setImages(prev => prev.map(img => img.id === tempImageId ? { ...img, status: 'failed' } : img));
         } finally {
             setIsProcessing(false);
             playSound('receive_end');
@@ -337,7 +339,7 @@ const App: React.FC = () => {
     }, []);
 
     const handleGenerateVideo = useCallback(async (prompt: string, uploadedImage?: ChatMessage['uploadedImage']) => {
-        if (!prompt.trim()) return;
+        if (!prompt.trim() && !API_KEY) return;
         setIsProcessing(true);
         playSound('receive_start');
 
@@ -352,6 +354,7 @@ const App: React.FC = () => {
         setVideos(prev => [tempVideo, ...prev]);
 
         try {
+            const ai = getAiInstance();
             if (!ai) throw new Error("AI client not initialized.");
 
             let imagePayload: { imageBytes: string; mimeType: string } | undefined = undefined;
@@ -371,7 +374,7 @@ const App: React.FC = () => {
                 model: VIDEO_MODEL_ID,
                 prompt: prompt,
                 image: imagePayload,
-                config: { numberOfVideos: 1 }
+                config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
             });
 
             setVideos(prev => prev.map(v => v.id === tempVideoId ? { ...v, operationName: operation.name } : v));
@@ -403,12 +406,13 @@ const App: React.FC = () => {
     };
 
     const handleUseAsStoryPrompt = (image: GeneratedImage) => {
+        if (!image.imageUrl) return;
         handleSelectView(ViewType.POETIC);
         setTimeout(async () => {
-             const response = await fetch(image.imageUrl);
+             const response = await fetch(image.imageUrl!);
              const blob = await response.blob();
              const uploadedImage = {
-                url: image.imageUrl,
+                url: image.imageUrl!,
                 mimeType: blob.type,
              };
             handleSendMessage(`Write a short, poetic story inspired by this image.`, uploadedImage);
@@ -434,10 +438,29 @@ const App: React.FC = () => {
         return <LoadingScreen loreSnippets={LORE_SNIPPETS} />;
     }
 
-    return (
-        <div className="h-screen w-screen flex flex-col items-center justify-center p-4 pt-8 md:p-6 relative overflow-hidden">
+    const viewTitles: Record<ViewType, string> = {
+        [ViewType.CHAT]: "General Chat",
+        [ViewType.VISIONARY]: "Visionary Mode",
+        [ViewType.POETIC]: "Poetic Mode",
+        [ViewType.CODE]: "Code Mode",
+        [ViewType.RESEARCHER]: "Researcher Mode",
+        [ViewType.IMAGE]: "Image Generator",
+        [ViewType.VIDEO]: "Video Generator",
+        [ViewType.LIVE]: "Live Conversation",
+        [ViewType.NONE]: "Select a Mode",
+    };
 
-            <div className="w-full h-full flex items-center justify-center pb-24">
+    return (
+        <div className="h-screen w-screen flex flex-col items-center justify-center p-4 md:p-6 relative overflow-hidden">
+            
+            <header className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 z-20 glass-header animate-fade-in">
+                <div className="flex items-center gap-3">
+                    <AiroraLogo className="w-8 h-8"/>
+                    <h1 className="font-orbitron text-lg font-bold text-white tracking-wide">{viewTitles[activeView]}</h1>
+                </div>
+            </header>
+
+            <main className="w-full h-full flex items-center justify-center pt-16 pb-24">
                 {activeView !== ViewType.NONE ? (
                     <>
                         {isChatView(activeView) && (
@@ -468,14 +491,20 @@ const App: React.FC = () => {
                                 isAnimatingOut={isAnimatingOut}
                             />
                         )}
+                        {activeView === ViewType.LIVE && (
+                             <LiveView
+                                isAnimatingOut={isAnimatingOut}
+                                getAiInstance={getAiInstance}
+                             />
+                        )}
                     </>
                 ) : (
-                    <div className="text-center">
+                    <div className="text-center animate-fade-in">
                         <h2 className="text-2xl font-bold font-orbitron text-white">Select a Mode</h2>
                         <p className="text-gray-400 mt-2">Click the button below to begin your journey.</p>
                     </div>
                 )}
-            </div>
+            </main>
 
             {isMenuOpen && (
                  <CommandMenu
@@ -494,7 +523,7 @@ const App: React.FC = () => {
                         setIsMenuOpen(!isMenuOpen);
                     }}
                     className="p-4 rounded-full glass-glow transition-all duration-300 hover:scale-105 animate-rgb-glow"
-                    aria-label={isMenuOpen ? "Close command menu" : "Open command menu"}
+                    aria-label={isMenuOpen ? "Close mode selector" : "Open mode selector"}
                 >
                     <SparklesIcon className="w-8 h-8" />
                 </button>

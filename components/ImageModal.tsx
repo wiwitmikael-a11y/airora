@@ -30,6 +30,7 @@ const ImageModal: React.FC<ImageModalProps> = ({ image, onClose, onGenerateVaria
     };
 
     const handleDownload = () => {
+        if (!image.imageUrl) return;
         playSound('click');
         const link = document.createElement('a');
         link.href = image.imageUrl;
@@ -47,6 +48,7 @@ const ImageModal: React.FC<ImageModalProps> = ({ image, onClose, onGenerateVaria
     };
 
     const handleShare = async () => {
+        if (!image.imageUrl) return;
         playSound('click');
         if (navigator.share) {
             try {

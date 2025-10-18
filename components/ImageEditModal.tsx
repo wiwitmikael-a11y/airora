@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { CloseIcon, SparklesIcon } from './icons/Icons';
 import { ImageForEditing } from '../types';
@@ -52,7 +51,7 @@ const ImageEditModal: React.FC<ImageEditModalProps> = ({ image, onClose, onEdit,
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         placeholder="Describe your edits... (e.g., add a hat)"
-                        className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg py-2 px-4 pr-12 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500/80"
+                        className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg py-2 px-4 pr-12 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500/80 text-sm"
                         onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
                         disabled={isProcessing}
                     />

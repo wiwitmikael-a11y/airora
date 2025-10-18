@@ -68,7 +68,7 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
         mode === ViewType.RESEARCHER ? "Enter a prompt with URLs to analyze..." :
         "Tanyakan apa saja, atau lampirkan gambar...";
         
-    const canUpload = ![ViewType.IMAGE, ViewType.RESEARCHER].includes(mode);
+    const canUpload = ![ViewType.IMAGE, ViewType.RESEARCHER, ViewType.LIVE].includes(mode);
 
     return (
         <div className="w-full relative">
@@ -99,9 +99,9 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
                         onClick={() => fileInputRef.current?.click()}
                         onMouseEnter={() => canUpload && playSound('hover')}
                         disabled={isProcessing || !canUpload}
-                        className={`w-13 h-13 flex items-center justify-center rounded-2xl bg-gray-800/50 border border-gray-700 text-gray-400 transition-colors ${canUpload ? 'hover:text-white' : 'invisible pointer-events-none'}`}
+                        className={`flex items-center justify-center rounded-2xl bg-gray-800/50 border border-gray-700 text-gray-400 transition-colors ${canUpload ? 'hover:text-white' : 'invisible pointer-events-none'}`}
                         aria-label="Attach image"
-                        style={{padding: '13px'}}
+                        style={{padding: '12px'}}
                     >
                         <PaperclipIcon className="w-6 h-6" />
                     </button>
@@ -114,8 +114,8 @@ const InputBar: React.FC<InputBarProps> = ({ onSendMessage, isProcessing, mode }
                         onKeyDown={handleKeyPress}
                         placeholder={placeholderText}
                         rows={1}
-                        className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-2xl py-3 pl-6 pr-16 resize-none text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500/80 transition-shadow duration-300"
-                        style={{ minHeight: '52px', maxHeight: '200px' }}
+                        className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-2xl pt-3 pb-2 pl-4 pr-14 resize-none text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500/80 transition-shadow duration-300 text-sm"
+                        style={{ minHeight: '48px', maxHeight: '200px' }}
                         disabled={isProcessing}
                     />
                     <button

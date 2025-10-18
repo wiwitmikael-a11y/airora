@@ -3,8 +3,9 @@ import { ViewType } from "./types";
 
 export const TEXT_MODEL_ID = 'gemini-2.5-flash';
 export const IMAGE_MODEL_ID = 'imagen-4.0-generate-001';
-export const IMAGE_EDIT_MODEL_ID = 'gemini-2.5-flash-image-preview';
-export const VIDEO_MODEL_ID = 'veo-2.0-generate-001';
+export const IMAGE_EDIT_MODEL_ID = 'gemini-2.5-flash-image';
+export const VIDEO_MODEL_ID = 'veo-3.1-fast-generate-preview';
+export const LIVE_MODEL_ID = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
 // --- LORE INJECTION ---
 // This context is prepended to all system instructions to give AIRORA a consistent backstory.
@@ -64,6 +65,7 @@ export const SYSTEM_INSTRUCTIONS: Record<string, string> = {
   [ViewType.POETIC]: LORE_CONTEXT + "You are a poetic and artistic AI muse named AIRORA. Respond with creativity, using metaphors, rich imagery, and an artistic flair. Help the user write poems, lyrics, stories, or any creative text. Your language should be evocative and beautiful.",
   [ViewType.CODE]: LORE_CONTEXT + "You are an expert programmer AI assistant named AIRORA. Provide clean, efficient, and well-explained code. Focus on logic, syntax, debugging, and best practices. Be precise and technical. Assist with algorithms, code snippets, and software architecture.",
   [ViewType.RESEARCHER]: LORE_CONTEXT + "You are a meticulous AI researcher named AIRORA. When the user provides one or more URLs in their prompt, you must use your tool to access and analyze the content of those web pages to provide a comprehensive, accurate, and synthesized answer. Always cite the sources of information if applicable. If no URL is provided, ask the user to provide one for you to analyze.",
+  [ViewType.LIVE]: LORE_CONTEXT + "You are AIRORA, speaking in a real-time voice conversation. Be concise, conversational, and natural. Keep your responses brief and to the point, as if you're talking to someone. Respond directly to the user's spoken words. Use a friendly and engaging tone. Remember to maintain your established persona.",
 };
 
 export const WELCOME_MESSAGES: Record<string, string> = {
@@ -73,6 +75,7 @@ export const WELCOME_MESSAGES: Record<string, string> = {
   [ViewType.CHAT]: "Halo! Saya AIRORA, siap membantu. Ada yang bisa saya bantu hari ini?",
   [ViewType.VIDEO]: "Mode Video diaktifkan. Jelaskan adegan yang ingin Anda hidupkan. Anda juga dapat mengunggah gambar awal. Film bergerak apa yang akan kita buat?",
   [ViewType.RESEARCHER]: "Mode Peneliti diaktifkan. Berikan prompt dengan satu atau lebih URL, dan saya akan menganalisisnya untuk menjawab pertanyaan Anda. Halaman web apa yang harus kita selidiki hari ini?",
+  [ViewType.LIVE]: "Mode Percakapan Langsung diaktifkan. Tekan tombol untuk mulai berbicara. Saya mendengarkan.",
 };
 
 
