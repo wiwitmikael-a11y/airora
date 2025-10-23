@@ -155,7 +155,7 @@ export const ShareIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const ChatBubbleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193l-3.72 3.72a1.125 1.125 0 01-1.59 0l-3.72-3.72a1.125 1.125 0 01-.282-.803v-4.286c0-.97.616-1.813 1.5-2.097m6.02-3.006a1.125 1.125 0 00-1.59 0l-3.72 3.72a.938.938 0 01-1.329 0l-3.72-3.72a1.125 1.125 0 00-1.59 0l-3.72 3.72a1.125 1.125 0 000 1.59l3.72 3.72a.938.938 0 010 1.329l-3.72 3.72a1.125 1.125 0 000 1.59l3.72 3.72a1.125 1.125 0 001.59 0l3.72-3.72a.938.938 0 011.329 0l3.72 3.72a1.125 1.125 0 001.59 0l3.72-3.72a1.125 1.125 0 000-1.59l-3.72-3.72a.938.938 0 010-1.329l3.72-3.72a1.125 1.125 0 000-1.59l-3.72-3.72z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
     </svg>
 );
 
@@ -274,7 +274,9 @@ export const WrenchScrewdriverIcon: React.FC<React.SVGProps<SVGSVGElement>> = (p
 
 export const MicrophoneIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m12 5.25v-1.5a6 6 0 00-12 0v1.5m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19 10v2a7 7 0 01-14 0v-2" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 19v3" />
   </svg>
 );
 

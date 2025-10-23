@@ -1,78 +1,108 @@
-import React, { useEffect, useRef } from 'react';
-import { ChatMessage, ViewType, MessageRole } from '../types';
-import Message from './Message';
-import InputBar from './InputBar';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { nanoid } from 'nanoid';
+import { GoogleGenAI, Chat } from '@google/genai';
+import { ChatMessage, MessageRole, ViewType } from '../types';
+import ChatWindow from './ChatWindow';
+import { SYSTEM_INSTRUCTIONS, PRO_MODEL_ID, TEXT_MODEL_ID } from '../constants';
 
 interface ChatViewProps {
-    messages: ChatMessage[];
-    isProcessing: boolean;
-    onSendMessage: (prompt: string, image?: ChatMessage['uploadedImage']) => void;
-    isAnimatingOut: boolean;
     viewType: ViewType;
+    isAnimatingOut: boolean;
+    getAiInstance: () => GoogleGenAI | null;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ messages, isProcessing, onSendMessage, isAnimatingOut, viewType }) => {
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const chatContainerRef = useRef<HTMLDivElement>(null);
-    const isUserScrolledUp = useRef(false);
-
-    // This function checks the user's scroll position and updates the ref.
-    const handleScroll = () => {
-        const container = chatContainerRef.current;
-        if (!container) return;
-
-        // A threshold to avoid floating point inaccuracies and register being "at the bottom".
-        const scrollThreshold = 20;
-        const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= scrollThreshold;
-        
-        // If the user is not at the bottom, it means they have scrolled up.
-        isUserScrolledUp.current = !isAtBottom;
-    };
-
-    // Attach a scroll listener to the chat container to detect user actions.
-    useEffect(() => {
-        const container = chatContainerRef.current;
-        container?.addEventListener('scroll', handleScroll, { passive: true });
-        return () => container?.removeEventListener('scroll', handleScroll);
-    }, []);
-
-    // This effect handles the intelligent auto-scrolling logic.
-    useEffect(() => {
-        const lastMessage = messages[messages.length - 1];
-        // We should always scroll to the bottom when the user sends a new message.
-        const shouldForceScroll = lastMessage?.role === MessageRole.USER;
-
-        if (shouldForceScroll) {
-            isUserScrolledUp.current = false;
-        }
-
-        // Only auto-scroll if the user hasn't scrolled up manually.
-        if (!isUserScrolledUp.current) {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }
-    }, [messages]);
-
+const ChatView: React.FC<ChatViewProps> = ({ viewType, isAnimatingOut, getAiInstance }) => {
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const chatRef = useRef<Chat | null>(null);
 
     const animationClass = isAnimatingOut ? 'animate-recede' : 'animate-emerge';
+    
+    // Reset chat session when viewType changes
+    useEffect(() => {
+        chatRef.current = null;
+        setMessages([]);
+    }, [viewType]);
 
+    const getModelId = () => {
+        // Use Pro model for more complex tasks
+        switch (viewType) {
+            case ViewType.CODE:
+            case ViewType.RESEARCHER:
+                return PRO_MODEL_ID;
+            default:
+                return TEXT_MODEL_ID;
+        }
+    };
+    
+    const handleSendMessage = useCallback(async (prompt: string, image?: { base64: string; mimeType: string }) => {
+        const ai = getAiInstance();
+        if (!ai) return;
+
+        setIsLoading(true);
+        const userMessage: ChatMessage = {
+            id: nanoid(),
+            role: MessageRole.USER,
+            content: prompt,
+            ...(image && { uploadedImage: { url: `data:${image.mimeType};base64,${image.base64}`, mimeType: image.mimeType } }),
+        };
+        setMessages(prev => [...prev, userMessage]);
+
+        const aiMessageId = nanoid();
+        setMessages(prev => [...prev, { id: aiMessageId, role: MessageRole.AI, content: '', isLoading: true }]);
+        
+        try {
+            const modelId = getModelId();
+            
+            if (image) {
+                // For vision (image input), make a one-off call.
+                const imagePart = { inlineData: { data: image.base64, mimeType: image.mimeType } };
+                const textPart = { text: prompt };
+                
+                const response = await ai.models.generateContent({
+                    // Use a vision-capable model
+                    model: 'gemini-2.5-flash',
+                    contents: { parts: [textPart, imagePart] },
+                    config: { systemInstruction: SYSTEM_INSTRUCTIONS[viewType] }
+                });
+                
+                setMessages(prev => prev.map(msg => msg.id === aiMessageId ? { ...msg, content: response.text, isLoading: false } : msg));
+            } else {
+                 // For text-only, use the persistent chat session
+                 if (!chatRef.current) {
+                    chatRef.current = ai.chats.create({
+                        model: modelId,
+                        config: { systemInstruction: SYSTEM_INSTRUCTIONS[viewType] },
+                    });
+                }
+                
+                const result = await chatRef.current.sendMessageStream({ message: prompt });
+                
+                let text = '';
+                for await (const chunk of result) {
+                    text += chunk.text;
+                    setMessages(prev => prev.map(msg => msg.id === aiMessageId ? { ...msg, content: text, isLoading: true } : msg));
+                }
+                 setMessages(prev => prev.map(msg => msg.id === aiMessageId ? { ...msg, isLoading: false } : msg));
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            const errorMessage = "Sorry, I encountered an error. Please try again.";
+            setMessages(prev => prev.map(msg => msg.id === aiMessageId ? { ...msg, content: errorMessage, isLoading: false } : msg));
+        } finally {
+            setIsLoading(false);
+        }
+    }, [viewType, getAiInstance]);
+    
     return (
-        <div className={`w-full h-full max-w-5xl flex flex-col glass-glow rounded-3xl p-4 ${animationClass}`}>
-            <div ref={chatContainerRef} className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-6">
-                {messages.map((msg) => (
-                    <Message key={msg.id} message={msg} />
-                ))}
-                <div ref={messagesEndRef} />
-            </div>
-            <div className="mt-4 flex-shrink-0">
-                <InputBar 
-                    onSendMessage={onSendMessage}
-                    isProcessing={isProcessing}
-                    mode={viewType}
-                />
-                <p className="text-[10px] md:text-xs text-gray-500 text-left mt-2 px-2">
-                    AIRORA dapat menampilkan informasi yang tidak akurat. Aplikasi ini dirancang hanya untuk tujuan edukasi dan eksperimental.
-                </p>
-            </div>
+        <div className={`w-full h-full glass-glow rounded-3xl ${animationClass}`}>
+            <ChatWindow
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                isLoading={isLoading}
+                viewType={viewType}
+                showImageUpload={true}
+            />
         </div>
     );
 };

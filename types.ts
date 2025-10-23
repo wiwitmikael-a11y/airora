@@ -63,4 +63,19 @@ export interface TranscriptionLine {
   id: string;
   role: MessageRole;
   text: string;
+  summary?: string;
+  isSummarizing?: boolean;
+}
+
+// FIX: Define AIStudio interface and augment Window globally in one place
+// to resolve TypeScript errors about subsequent property declarations.
+// Represents the aistudio object available on the window for API key selection.
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+  interface Window {
+    aistudio?: AIStudio;
+  }
 }

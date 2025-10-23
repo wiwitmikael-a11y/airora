@@ -1,539 +1,155 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { ViewType, ChatMessage, MessageRole, GeneratedImage, ImageForEditing, GeneratedVideo } from './types';
-import { TEXT_MODEL_ID, IMAGE_MODEL_ID, IMAGE_EDIT_MODEL_ID, VIDEO_MODEL_ID, LORE_SNIPPETS, SYSTEM_INSTRUCTIONS, WELCOME_MESSAGES } from './constants';
-import CommandMenu from './components/CommandMenu';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { GoogleGenAI } from '@google/genai';
+import { ViewType } from './types';
+import { LORE_SNIPPETS } from './constants';
+
+import Sidebar from './components/Sidebar';
+import WelcomeScreen from './components/WelcomeScreen';
+import LoadingScreen from './components/LoadingScreen';
+import ConfigurationErrorScreen from './components/ConfigurationErrorScreen';
+import InitializationScreen from './components/InitializationScreen';
 import ChatView from './components/ChatView';
 import ImageView from './components/ImageView';
 import VideoView from './components/VideoView';
 import LiveView from './components/LiveView';
-import WelcomeScreen from './components/WelcomeScreen';
-import LoadingScreen from './components/LoadingScreen';
-import ConfigurationErrorScreen from './components/ConfigurationErrorScreen';
-import { SparklesIcon, AiroraLogo } from './components/icons/Icons';
-import { GoogleGenAI, Modality, Chat, Part, GenerateVideosOperation } from '@google/genai';
-import { playSound, getMutedState, setMutedState } from './sound';
-
-const getApiKey = (): string | undefined => {
-    try {
-        if (typeof process !== 'undefined' && process.env) {
-            return process.env.API_KEY;
-        }
-        return undefined;
-    } catch (e) {
-        return undefined;
-    }
-};
-
-const API_KEY = getApiKey();
-// AI instance is now created on demand to ensure fresh API keys for certain models like Veo
-const getAiInstance = () => API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
-
-type AppState = 'welcome' | 'loading' | 'active';
-
-const isChatView = (view: ViewType) => {
-    return [ViewType.CHAT, ViewType.VISIONARY, ViewType.POETIC, ViewType.CODE, ViewType.RESEARCHER].includes(view);
-};
+import { getMutedState, playSound, setMutedState } from './sound';
 
 const App: React.FC = () => {
-    const [appState, setAppState] = useState<AppState>('welcome');
-    const [activeView, setActiveView] = useState<ViewType>(ViewType.NONE);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [isAppVisible, setAppVisible] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
+    const [showLoading, setShowLoading] = useState(false);
+    const [isConfigError, setIsConfigError] = useState(false);
+    const [currentView, setCurrentView] = useState<ViewType>(ViewType.NONE);
     const [isAnimatingOut, setIsAnimatingOut] = useState(false);
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
+
     const [isMuted, setIsMuted] = useState(getMutedState());
-    
-    // State to hold all messages for all chat views
-    const [allChatMessages, setAllChatMessages] = useState<Record<string, ChatMessage[]>>({});
-    const [images, setImages] = useState<GeneratedImage[]>([]);
-    const [videos, setVideos] = useState<GeneratedVideo[]>([]);
-    const [isProcessing, setIsProcessing] = useState(false);
+    const aiRef = useRef<GoogleGenAI | null>(null);
 
-    const chatSessionRefs = useRef<Record<string, Chat | null>>({});
-
-    const fileToGenerativePart = async (file: File): Promise<Part> => {
-        const base64EncodedDataPromise = new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-            reader.readAsDataURL(file);
-        });
-        return {
-            inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
-        };
-    };
-
-    // --- Session Management ---
-    useEffect(() => {
-        try {
-            const savedSession = sessionStorage.getItem('airora_session');
-            if (savedSession) {
-                const { activeView: savedView, allChatMessages: savedChats, images: savedImages, videos: savedVideos } = JSON.parse(savedSession);
-                
-                if (savedView && savedView !== ViewType.NONE) {
-                    setActiveView(savedView);
-                    setAllChatMessages(savedChats || {});
-                    setImages(savedImages || []);
-                    setVideos(savedVideos || []);
-                    const ai = getAiInstance();
-                    
-                    // Re-initialize chat sessions from history
-                    if (savedChats && ai) {
-                       for (const [view, messages] of Object.entries(savedChats as Record<string, ChatMessage[]>)) {
-                           if (messages.length > 1) { // More than just the welcome message
-                               chatSessionRefs.current[view] = ai.chats.create({
-                                   model: TEXT_MODEL_ID,
-                                   config: { systemInstruction: SYSTEM_INSTRUCTIONS[view] },
-                                   history: messages
-                                       .filter((msg: ChatMessage) => !msg.isLoading && msg.id !== 'welcome')
-                                       .map((msg: ChatMessage) => ({
-                                           role: msg.role === MessageRole.USER ? 'user' : 'model',
-                                           parts: [{ text: msg.content }]
-                                       })),
-                               });
-                           }
-                       }
-                    }
-                    
-                    setAppState('active');
-                }
-            }
-        } catch (error) {
-            console.error("Failed to load session:", error);
-            sessionStorage.removeItem('airora_session');
+    const getAiInstance = useCallback((): GoogleGenAI | null => {
+        if (!process.env.API_KEY) {
+            console.error("API key is missing.");
+            if (!isConfigError) setIsConfigError(true);
+            return null;
         }
-    }, []);
-
-    useEffect(() => {
-        if (appState === 'active' && activeView !== ViewType.NONE) {
+        // Create a new instance only if one doesn't exist, to avoid re-creation on every call
+        if (!aiRef.current) {
             try {
-                const sessionData = {
-                    activeView,
-                    allChatMessages,
-                    images,
-                    videos
-                };
-                sessionStorage.setItem('airora_session', JSON.stringify(sessionData));
-            } catch (error) {
-                console.error("Failed to save session:", error);
+                // FIX: Initialize GoogleGenAI with a named apiKey parameter.
+                aiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            } catch (e) {
+                console.error("Failed to initialize GoogleGenAI", e);
+                if (!isConfigError) setIsConfigError(true);
+                return null;
             }
         }
-    }, [activeView, allChatMessages, images, videos, appState]);
+        return aiRef.current;
+    }, [isConfigError]);
 
+    useEffect(() => {
+        // Check for API key existence on mount.
+        if (typeof process.env.API_KEY !== 'string' || process.env.API_KEY === '') {
+            setIsConfigError(true);
+        }
+        setIsInitializing(false);
+    }, []);
 
     const handleBegin = () => {
         playSound('open');
-        setAppState('loading');
-        setTimeout(() => setAppState('active'), 10000); 
+        setShowLoading(true);
+        // Simulate a loading time for dramatic effect.
+        setTimeout(() => {
+            setIsInitialized(true);
+            setShowLoading(false);
+            setAppVisible(true);
+        }, 10000); 
     };
+    
+    const handleSelectView = (view: ViewType) => {
+        if (currentView === view) return;
+        
+        playSound('click');
+        setIsAnimatingOut(true);
 
-    const changeView = useCallback((newView: ViewType) => {
-        playSound('open');
-        setActiveView(newView);
-        setIsAnimatingOut(false);
-        setIsMenuOpen(false);
-
-        if (isChatView(newView)) {
-            if (!allChatMessages[newView]) {
-                 setAllChatMessages(prev => ({
-                    ...prev,
-                    [newView]: [{ id: 'welcome', role: MessageRole.AI, content: WELCOME_MESSAGES[newView] }]
-                }));
-                const ai = getAiInstance();
-                if (ai) {
-                     chatSessionRefs.current[newView] = ai.chats.create({
-                        model: TEXT_MODEL_ID,
-                        config: { systemInstruction: SYSTEM_INSTRUCTIONS[newView] },
-                    });
-                }
-            }
-        }
-    }, [allChatMessages]);
-
-    const handleSelectView = useCallback((newView: ViewType) => {
-        if (activeView === ViewType.NONE || activeView !== newView) {
-            if (activeView !== ViewType.NONE) {
-                setIsAnimatingOut(true);
-                setTimeout(() => changeView(newView), 400);
-            } else {
-                changeView(newView);
-            }
-        } else {
-            setIsMenuOpen(false);
-        }
-    }, [activeView, changeView]);
-
+        // Allow time for the exit animation before switching the view.
+        setTimeout(() => {
+            setCurrentView(view);
+            setIsAnimatingOut(false);
+        }, 300);
+    };
 
     const handleEndSession = () => {
         playSound('endSession');
-        setIsAnimatingOut(true);
+        setAppVisible(false);
+        // Reset application state after the fade-out animation.
         setTimeout(() => {
-            setAppState('welcome');
-            setActiveView(ViewType.NONE);
-            setAllChatMessages({});
-            setImages([]);
-            setVideos([]);
-            setIsAnimatingOut(false);
-            chatSessionRefs.current = {};
-            sessionStorage.removeItem('airora_session');
-        }, 500);
-    };
-
-    const handleSendMessage = useCallback(async (prompt: string, uploadedImage?: ChatMessage['uploadedImage']) => {
-        if ((!prompt || !prompt.trim()) && !uploadedImage) return;
-
-        const userMessageId = `msg-${Date.now()}`;
-        const userMessage: ChatMessage = {
-            id: userMessageId,
-            role: MessageRole.USER,
-            content: prompt,
-            uploadedImage,
-        };
-         setAllChatMessages(prev => ({
-            ...prev,
-            [activeView]: [...(prev[activeView] || []), userMessage]
-        }));
-
-
-        const aiMessageId = `msg-${Date.now() + 1}`;
-        const aiLoadingMessage: ChatMessage = {
-            id: aiMessageId,
-            role: MessageRole.AI,
-            content: '',
-            isLoading: true,
-        };
-        setAllChatMessages(prev => ({
-            ...prev,
-            [activeView]: [...(prev[activeView] || []), aiLoadingMessage]
-        }));
-        setIsProcessing(true);
-        playSound('receive_start');
-
-        let fullResponse = '';
-        try {
-            const chatSession = chatSessionRefs.current[activeView];
-            if (!chatSession) throw new Error("Chat session not initialized.");
-
-            const parts: Part[] = [];
-            if (prompt && prompt.trim()) {
-                parts.push({ text: prompt });
-            }
-            if (uploadedImage) {
-                 const response = await fetch(uploadedImage.url);
-                 const blob = await response.blob();
-                 const file = new File([blob], "uploaded_image", { type: uploadedImage.mimeType });
-                 const imagePart = await fileToGenerativePart(file);
-                 parts.push(imagePart);
-            }
-
-            const stream = await chatSession.sendMessageStream({ message: parts });
-            
-            for await (const chunk of stream) {
-                const chunkText = chunk.text;
-                fullResponse += chunkText;
-                setAllChatMessages(prev => ({
-                    ...prev,
-                    [activeView]: prev[activeView].map(msg =>
-                        msg.id === aiMessageId ? { ...msg, content: fullResponse, isLoading: true } : msg
-                    )
-                }));
-            }
-            
-            setAllChatMessages(prev => ({
-                ...prev,
-                [activeView]: prev[activeView].map(msg =>
-                    msg.id === aiMessageId ? { ...msg, isLoading: false } : msg
-                )
-            }));
-
-        } catch (error) {
-            console.error('Error sending message:', error);
-            setAllChatMessages(prev => ({
-                ...prev,
-                [activeView]: prev[activeView].map(msg =>
-                    msg.id === aiMessageId ? { ...msg, content: 'Sorry, I encountered an error.', isLoading: false } : msg
-                )
-            }));
-        } finally {
-            setIsProcessing(false);
-            playSound('receive_end');
-        }
-    }, [activeView]);
-
-    const handleGenerateImage = useCallback(async (prompt: string) => {
-        if (!prompt.trim()) return;
-        setIsProcessing(true);
-        playSound('receive_start');
-
-        const tempImageId = `img-${Date.now()}`;
-        const tempImage: GeneratedImage = { id: tempImageId, prompt, status: 'processing' };
-        setImages(prev => [tempImage, ...prev]);
-
-        try {
-            const ai = getAiInstance();
-            if (!ai) throw new Error("AI client not initialized.");
-            const response = await ai.models.generateImages({
-                model: IMAGE_MODEL_ID,
-                prompt: prompt,
-                config: { numberOfImages: 1, outputMimeType: 'image/png' },
-            });
-            
-            const base64Image = response.generatedImages[0].image.imageBytes;
-            const imageUrl = `data:image/png;base64,${base64Image}`;
-
-            setImages(prev =>
-                prev.map(img => (img.id === tempImageId ? { ...img, imageUrl, status: 'completed' } : img))
-            );
-
-        } catch (error) {
-            console.error('Error generating image:', error);
-            setImages(prev => prev.map(img => img.id === tempImageId ? { ...img, status: 'failed' } : img));
-        } finally {
-            setIsProcessing(false);
-            playSound('receive_end');
-        }
-    }, []);
-
-    const handleEditImage = useCallback(async (imageToEdit: ImageForEditing, prompt: string) => {
-        setIsProcessing(true);
-        playSound('receive_start');
-        const tempImageId = `img-${Date.now()}`;
-        const tempImage: GeneratedImage = { id: tempImageId, prompt: `Edit: ${prompt}`, status: 'processing' };
-        setImages(prev => [tempImage, ...prev]);
-
-        try {
-            const ai = getAiInstance();
-            if (!ai) throw new Error("AI client not initialized.");
-
-            const imagePart = {
-                inlineData: {
-                    data: imageToEdit.base64,
-                    mimeType: imageToEdit.mimeType,
-                },
-            };
-            const textPart = { text: prompt };
-
-            const response = await ai.models.generateContent({
-                model: IMAGE_EDIT_MODEL_ID,
-                contents: { parts: [imagePart, textPart] },
-                config: {
-                    responseModalities: [Modality.IMAGE],
-                },
-            });
-
-            const imageContent = response.candidates?.[0]?.content?.parts.find(part => part.inlineData);
-            if (imageContent && imageContent.inlineData) {
-                const base64Image = imageContent.inlineData.data;
-                const imageUrl = `data:${imageContent.inlineData.mimeType};base64,${base64Image}`;
-                 setImages(prev =>
-                    prev.map(img => (img.id === tempImageId ? { ...img, imageUrl, status: 'completed' } : img))
-                );
-            } else {
-                 throw new Error("No image data in response.");
-            }
-
-        } catch (error) {
-            console.error('Error editing image:', error);
-            setImages(prev => prev.map(img => img.id === tempImageId ? { ...img, status: 'failed' } : img));
-        } finally {
-            setIsProcessing(false);
-            playSound('receive_end');
-        }
-    }, []);
-
-    const handleGenerateVideo = useCallback(async (prompt: string, uploadedImage?: ChatMessage['uploadedImage']) => {
-        if (!prompt.trim() && !API_KEY) return;
-        setIsProcessing(true);
-        playSound('receive_start');
-
-        const tempVideoId = `vid-${Date.now()}`;
-        const tempVideo: GeneratedVideo = {
-            id: tempVideoId,
-            prompt,
-            operationName: '',
-            status: 'processing',
-            uploadedImage: uploadedImage ? { url: uploadedImage.url } : undefined,
-        };
-        setVideos(prev => [tempVideo, ...prev]);
-
-        try {
-            const ai = getAiInstance();
-            if (!ai) throw new Error("AI client not initialized.");
-
-            let imagePayload: { imageBytes: string; mimeType: string } | undefined = undefined;
-            if (uploadedImage) {
-                const response = await fetch(uploadedImage.url);
-                const blob = await response.blob();
-                const reader = new FileReader();
-                const base64String = await new Promise<string>((resolve, reject) => {
-                    reader.onload = () => resolve((reader.result as string).split(',')[1]);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-                imagePayload = { imageBytes: base64String, mimeType: uploadedImage.mimeType };
-            }
-
-            let operation: GenerateVideosOperation = await ai.models.generateVideos({
-                model: VIDEO_MODEL_ID,
-                prompt: prompt,
-                image: imagePayload,
-                config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
-            });
-
-            setVideos(prev => prev.map(v => v.id === tempVideoId ? { ...v, operationName: operation.name } : v));
-
-            while (!operation.done) {
-                await new Promise(resolve => setTimeout(resolve, 10000));
-                operation = await ai.operations.getVideosOperation({ operation: operation });
-            }
-
-            if (operation.response?.generatedVideos?.[0]?.video?.uri) {
-                 const downloadLink = operation.response.generatedVideos[0].video.uri;
-                 const videoUrl = `${downloadLink}&key=${API_KEY}`;
-                 setVideos(prev => prev.map(v => v.id === tempVideoId ? { ...v, status: 'completed', videoUrl } : v));
-            } else {
-                throw new Error("Video generation completed but no URL found.");
-            }
-
-        } catch (error) {
-            console.error('Error generating video:', error);
-            setVideos(prev => prev.map(v => v.id === tempVideoId ? { ...v, status: 'failed' } : v));
-        } finally {
-            setIsProcessing(false);
-            playSound('receive_end');
-        }
-    }, []);
-
-     const handleGenerateVariations = (prompt: string) => {
-        handleGenerateImage(prompt);
-    };
-
-    const handleUseAsStoryPrompt = (image: GeneratedImage) => {
-        if (!image.imageUrl) return;
-        handleSelectView(ViewType.POETIC);
-        setTimeout(async () => {
-             const response = await fetch(image.imageUrl!);
-             const blob = await response.blob();
-             const uploadedImage = {
-                url: image.imageUrl!,
-                mimeType: blob.type,
-             };
-            handleSendMessage(`Write a short, poetic story inspired by this image.`, uploadedImage);
+            setIsInitialized(false);
+            setCurrentView(ViewType.NONE);
+            // Here you would also reset other states like chat messages, images, etc.
         }, 500);
     };
     
     const handleToggleMute = () => {
-        const newState = !isMuted;
-        setIsMuted(newState);
-        setMutedState(newState);
-        playSound('click');
+        const newMutedState = !isMuted;
+        setIsMuted(newMutedState);
+        setMutedState(newMutedState);
+        if (!newMutedState) {
+            playSound('click');
+        }
     };
 
-    if (!API_KEY) {
+    const renderCurrentView = () => {
+        switch (currentView) {
+            case ViewType.CHAT:
+            case ViewType.VISIONARY:
+            case ViewType.POETIC:
+            case ViewType.CODE:
+            case ViewType.RESEARCHER:
+                return <ChatView key={currentView} viewType={currentView} isAnimatingOut={isAnimatingOut} getAiInstance={getAiInstance} />;
+            case ViewType.IMAGE:
+                return <ImageView key={currentView} isAnimatingOut={isAnimatingOut} getAiInstance={getAiInstance} />;
+            case ViewType.VIDEO:
+                return <VideoView key={currentView} isAnimatingOut={isAnimatingOut} getAiInstance={getAiInstance} />;
+            case ViewType.LIVE:
+                return <LiveView key={currentView} isAnimatingOut={isAnimatingOut} getAiInstance={getAiInstance} />;
+            default:
+                return (
+                    <div className={`w-full h-full flex items-center justify-center text-gray-400 ${isAnimatingOut ? 'animate-recede' : 'animate-emerge'}`}>
+                        Select a mode from the sidebar to begin.
+                    </div>
+                );
+        }
+    };
+    
+    if (isConfigError) {
         return <ConfigurationErrorScreen />;
     }
 
-    if (appState === 'welcome') {
+    if (isInitializing) {
+        return <InitializationScreen />;
+    }
+
+    if (!isInitialized) {
+        if (showLoading) {
+            return <LoadingScreen loreSnippets={LORE_SNIPPETS} />;
+        }
         return <WelcomeScreen onBegin={handleBegin} />;
     }
 
-    if (appState === 'loading') {
-        return <LoadingScreen loreSnippets={LORE_SNIPPETS} />;
-    }
-
-    const viewTitles: Record<ViewType, string> = {
-        [ViewType.CHAT]: "General Chat",
-        [ViewType.VISIONARY]: "Visionary Mode",
-        [ViewType.POETIC]: "Poetic Mode",
-        [ViewType.CODE]: "Code Mode",
-        [ViewType.RESEARCHER]: "Researcher Mode",
-        [ViewType.IMAGE]: "Image Generator",
-        [ViewType.VIDEO]: "Video Generator",
-        [ViewType.LIVE]: "Live Conversation",
-        [ViewType.NONE]: "Select a Mode",
-    };
-
     return (
-        <div className="h-screen w-screen flex flex-col items-center justify-center p-4 md:p-6 relative overflow-hidden">
-            
-            <header className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 z-20 glass-header animate-fade-in">
-                <div className="flex items-center gap-3">
-                    <AiroraLogo className="w-8 h-8"/>
-                    <h1 className="font-orbitron text-lg font-bold text-white tracking-wide">{viewTitles[activeView]}</h1>
-                </div>
-            </header>
-
-            <main className="w-full h-full flex items-center justify-center pt-16 pb-24">
-                {activeView !== ViewType.NONE ? (
-                    <>
-                        {isChatView(activeView) && (
-                            <ChatView
-                                messages={allChatMessages[activeView] || []}
-                                isProcessing={isProcessing}
-                                onSendMessage={handleSendMessage}
-                                isAnimatingOut={isAnimatingOut}
-                                viewType={activeView}
-                            />
-                        )}
-                        {activeView === ViewType.IMAGE && (
-                            <ImageView
-                                images={images}
-                                isProcessing={isProcessing}
-                                onSendMessage={handleGenerateImage}
-                                onEditImage={handleEditImage}
-                                isAnimatingOut={isAnimatingOut}
-                                onGenerateVariations={handleGenerateVariations}
-                                onUseAsStoryPrompt={handleUseAsStoryPrompt}
-                            />
-                        )}
-                        {activeView === ViewType.VIDEO && (
-                            <VideoView
-                                videos={videos}
-                                isProcessing={isProcessing}
-                                onGenerateVideo={handleGenerateVideo}
-                                isAnimatingOut={isAnimatingOut}
-                            />
-                        )}
-                        {activeView === ViewType.LIVE && (
-                             <LiveView
-                                isAnimatingOut={isAnimatingOut}
-                                getAiInstance={getAiInstance}
-                             />
-                        )}
-                    </>
-                ) : (
-                    <div className="text-center animate-fade-in">
-                        <h2 className="text-2xl font-bold font-orbitron text-white">Select a Mode</h2>
-                        <p className="text-gray-400 mt-2">Click the button below to begin your journey.</p>
-                    </div>
-                )}
-            </main>
-
-            {isMenuOpen && (
-                 <CommandMenu
+        <div className={`h-screen w-screen bg-black text-white flex items-center justify-center font-sans overflow-hidden transition-opacity duration-500 ${isAppVisible ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="aurora-background"></div>
+            <div className="h-full w-full flex p-4 gap-4 z-10">
+                <Sidebar
+                    currentView={currentView}
                     onSelectView={handleSelectView}
                     onEndSession={handleEndSession}
-                    onClose={() => { playSound('close'); setIsMenuOpen(false); }}
                     isMuted={isMuted}
                     onToggleMute={handleToggleMute}
                 />
-            )}
-           
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-50 flex justify-center items-center gap-4">
-                <button
-                    onClick={() => {
-                        playSound(isMenuOpen ? 'close' : 'open');
-                        setIsMenuOpen(!isMenuOpen);
-                    }}
-                    className="p-4 rounded-full glass-glow transition-all duration-300 hover:scale-105 animate-rgb-glow"
-                    aria-label={isMenuOpen ? "Close mode selector" : "Open mode selector"}
-                >
-                    <SparklesIcon className="w-8 h-8" />
-                </button>
-            </div>
-            
-            <div className="absolute bottom-2 left-0 right-0 flex justify-center items-center gap-2 text-center animate-fade-in z-10">
-                <AiroraLogo className="w-5 h-5"/>
-                <p className="font-orbitron text-xs font-semibold text-white/60">
-                    Powered by Atharrazka Core
-                </p>
+                <main className="flex-1 h-full min-w-0">
+                    {renderCurrentView()}
+                </main>
             </div>
         </div>
     );
