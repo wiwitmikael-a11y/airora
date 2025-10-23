@@ -1,129 +1,187 @@
-import React, { useState, useCallback } from 'react';
-import { nanoid } from 'nanoid';
-import { GoogleGenAI } from '@google/genai';
+import React, { useState } from 'react';
 import { GeneratedImage, ImageForEditing } from '../types';
 import InputBar from './InputBar';
+import { ViewType } from '../types';
+import { ImageIcon as PlaceholderIcon, EditIcon, GridIcon, BookOpenIcon, AlertTriangleIcon } from './icons/Icons';
+import { EMPTY_GALLERY_MESSAGES } from '../constants';
 import ImageModal from './ImageModal';
 import ImageEditModal from './ImageEditModal';
-import { IMAGE_MODEL_ID } from '../constants';
-import { DownloadIcon, EditIcon, SparklesIcon } from './icons/Icons';
 import { playSound } from '../sound';
 
-interface ImageViewProps {
-    isAnimatingOut: boolean;
-    getAiInstance: () => GoogleGenAI | null;
+const getBase64FromImageUrl = async (url: string): Promise<{base64: string, mimeType: string}> => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const result = reader.result as string;
+            const base64 = result.split(',')[1];
+            resolve({ base64, mimeType: blob.type });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+
+interface ImageCardProps {
+    image: GeneratedImage;
+    onView: (image: GeneratedImage) => void;
+    onEdit: (image: GeneratedImage) => void;
+    onGenerateVariations: (prompt: string) => void;
+    onUseAsStoryPrompt: (image: GeneratedImage) => void;
+    onRetry: (prompt: string) => void;
 }
 
-const ImageView: React.FC<ImageViewProps> = ({ isAnimatingOut, getAiInstance }) => {
-    const [images, setImages] = useState<GeneratedImage[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+const ImageCard: React.FC<ImageCardProps> = ({ image, onView, onEdit, onGenerateVariations, onUseAsStoryPrompt, onRetry }) => {
+    if (image.status === 'failed') {
+        return (
+            <div className="relative aspect-square bg-gray-900/50 rounded-lg overflow-hidden group flex flex-col items-center justify-center text-center p-4">
+                <AlertTriangleIcon className="w-10 h-10 text-red-400/80 mb-2"/>
+                <p className="text-sm font-semibold text-red-400">Generation Failed</p>
+                <button 
+                    onClick={() => onRetry(image.prompt)}
+                    className="mt-3 px-3 py-1 text-xs bg-gray-700/80 hover:bg-gray-600/80 rounded-full transition-colors"
+                >
+                    Retry
+                </button>
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                    {image.prompt}
+                </div>
+            </div>
+        );
+    }
+    
+    if (image.status === 'processing') {
+        return (
+            <div className="relative aspect-square bg-gray-900/50 rounded-lg overflow-hidden group flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-dashed border-gray-600 rounded-full animate-spin"></div>
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                    {image.prompt}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="relative aspect-square bg-gray-900/50 rounded-lg overflow-hidden group">
+            <button onClick={() => onView(image)} onMouseEnter={() => playSound('hover')} className="w-full h-full">
+                <img src={image.imageUrl} alt={image.prompt} className="w-full h-full object-cover" />
+            </button>
+             <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                    onClick={() => onEdit(image)}
+                    onMouseEnter={() => playSound('hover')}
+                    className="p-2 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-teal-500/50 transition-colors"
+                    aria-label="Edit image"
+                > <EditIcon className="w-5 h-5"/> </button>
+                 <button 
+                    onClick={() => onGenerateVariations(image.prompt)}
+                    onMouseEnter={() => playSound('hover')}
+                    className="p-2 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-blue-500/50 transition-colors"
+                    aria-label="Generate variations"
+                > <GridIcon className="w-5 h-5"/> </button>
+                <button 
+                    onClick={() => onUseAsStoryPrompt(image)}
+                    onMouseEnter={() => playSound('hover')}
+                    className="p-2 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-purple-500/50 transition-colors"
+                    aria-label="Use as story prompt"
+                > <BookOpenIcon className="w-5 h-5"/> </button>
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                {image.prompt}
+            </div>
+        </div>
+    );
+};
+
+
+interface ImageViewProps {
+    images: GeneratedImage[];
+    isProcessing: boolean;
+    onSendMessage: (prompt: string) => void;
+    onEditImage: (imageToEdit: ImageForEditing, prompt: string) => void;
+    isAnimatingOut: boolean;
+    onGenerateVariations: (prompt: string) => void;
+    onUseAsStoryPrompt: (image: GeneratedImage) => void;
+    onUseImageForVideo: (image: GeneratedImage) => void;
+}
+
+const ImageView: React.FC<ImageViewProps> = ({ images, isProcessing, onSendMessage, onEditImage, isAnimatingOut, onGenerateVariations, onUseAsStoryPrompt, onUseImageForVideo }) => {
     const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
-    const [imageForEditing, setImageForEditing] = useState<ImageForEditing | null>(null);
+    const [imageToEdit, setImageToEdit] = useState<ImageForEditing | null>(null);
 
     const animationClass = isAnimatingOut ? 'animate-recede' : 'animate-emerge';
 
-    const handleGenerate = useCallback(async (prompt: string) => {
-        const ai = getAiInstance();
-        if (!ai || !prompt) return;
-
-        setIsLoading(true);
-        const newImage: GeneratedImage = {
-            id: nanoid(),
-            prompt,
-            status: 'processing',
-        };
-        setImages(prev => [newImage, ...prev]);
-
-        try {
-            const response = await ai.models.generateImages({
-                model: IMAGE_MODEL_ID,
-                prompt,
-                config: {
-                    numberOfImages: 1,
-                    outputMimeType: 'image/png',
-                },
-            });
-            const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-            const imageUrl = `data:image/png;base64,${base64ImageBytes}`;
-            setImages(prev => prev.map(img => img.id === newImage.id ? { ...img, imageUrl, status: 'completed' } : img));
-        } catch (error) {
-            console.error('Error generating image:', error);
-            setImages(prev => prev.map(img => img.id === newImage.id ? { ...img, status: 'failed' } : img));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [getAiInstance]);
-    
-    const handleEdit = (image: GeneratedImage) => {
+    const handleEditClick = async (image: GeneratedImage) => {
         if (!image.imageUrl) return;
         playSound('click');
-        const base64 = image.imageUrl.split(',')[1];
-        setImageForEditing({
-            id: image.id,
-            imageUrl: image.imageUrl,
-            prompt: image.prompt,
-            base64,
-            mimeType: 'image/png'
-        });
+        try {
+            const { base64, mimeType } = await getBase64FromImageUrl(image.imageUrl);
+            setImageToEdit({ ...image, imageUrl: image.imageUrl, base64, mimeType });
+        } catch (error) {
+            console.error("Error preparing image for editing:", error);
+        }
+    };
+
+    const handleEditFromModal = (image: GeneratedImage) => {
+        setSelectedImage(null); // Close the view modal
+        // A short delay to allow the first modal to close before opening the new one
+        setTimeout(() => handleEditClick(image), 100);
     };
     
-    const handleDownload = (imageUrl: string, prompt: string) => {
+    const handleVariationsClick = (prompt: string) => {
         playSound('click');
-        const link = document.createElement('a');
-        link.href = imageUrl;
-        link.download = `${prompt.slice(0, 20).replace(/\s+/g, '_')}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        onGenerateVariations(prompt);
     };
 
+    const handleStoryPromptClick = (image: GeneratedImage) => {
+        playSound('click');
+        onUseAsStoryPrompt(image);
+    };
+
+
     return (
-        <div className={`w-full h-full flex flex-col glass-glow rounded-3xl ${animationClass}`}>
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                {images.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
-                        <SparklesIcon className="w-16 h-16 mb-4 text-teal-400/50" />
-                        <h2 className="text-xl font-bold text-white">Image Generation</h2>
-                        <p>Describe the image you want to create.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {images.map(image => (
-                            <div key={image.id} className="aspect-square rounded-lg bg-gray-800/50 overflow-hidden group relative cursor-pointer" onClick={() => image.imageUrl && setSelectedImage(image)}>
-                                {image.status === 'processing' && (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                        <div className="w-8 h-8 border-4 border-t-teal-400 border-gray-600 rounded-full animate-spin"></div>
-                                    </div>
-                                )}
-                                {image.status === 'failed' && (
-                                    <div className="w-full h-full flex items-center justify-center text-red-400">Failed</div>
-                                )}
-                                {image.imageUrl && (
-                                    <img src={image.imageUrl} alt={image.prompt} className="w-full h-full object-cover" />
-                                )}
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-4">
-                                    <p className="text-sm text-white line-clamp-3">{image.prompt}</p>
-                                    {image.status === 'completed' && image.imageUrl && (
-                                        <div className="flex items-center gap-2 self-end">
-                                            <button onClick={(e) => { e.stopPropagation(); handleEdit(image); }} onMouseEnter={() => playSound('hover')} className="p-2 rounded-full bg-black/50 hover:bg-black/70"><EditIcon className="w-4 h-4 text-white" /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDownload(image.imageUrl!, image.prompt); }} onMouseEnter={() => playSound('hover')} className="p-2 rounded-full bg-black/50 hover:bg-black/70"><DownloadIcon className="w-4 h-4 text-white" /></button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+        <div className={`w-full h-full max-w-5xl flex flex-col glass-glow rounded-3xl p-4 ${animationClass}`}>
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                {images.length === 0 && !isProcessing && (
+                     <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                        <PlaceholderIcon className="w-24 h-24 mb-4" />
+                        <p>{EMPTY_GALLERY_MESSAGES[ViewType.IMAGE]}</p>
                     </div>
                 )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {images.map((image) => (
+                       <ImageCard 
+                           key={image.id}
+                           image={image}
+                           onView={(img) => { playSound('click'); setSelectedImage(img); }}
+                           onEdit={handleEditClick}
+                           onGenerateVariations={handleVariationsClick}
+                           onUseAsStoryPrompt={handleStoryPromptClick}
+                           onRetry={onSendMessage}
+                       />
+                    ))}
+                </div>
             </div>
-            <div className="px-6 pb-6">
-                <InputBar onSendMessage={handleGenerate} isLoading={isLoading} />
-                 <p className="text-[10px] md:text-xs text-gray-500 text-left mt-2">
-                    Generations may vary. Be descriptive for best results.
-                 </p>
+            <div className="mt-4 flex-shrink-0">
+                <InputBar onSendMessage={onSendMessage} isProcessing={isProcessing} mode={ViewType.IMAGE} />
+                <p className="text-[10px] md:text-xs text-gray-500 text-left mt-2 px-2">
+                    AIRORA dapat menampilkan informasi yang tidak akurat. Aplikasi ini dirancang hanya untuk tujuan edukasi dan eksperimental.
+                </p>
             </div>
-
-            {selectedImage && <ImageModal image={selectedImage} onClose={() => setSelectedImage(null)} />}
-            {imageForEditing && <ImageEditModal image={imageForEditing} onClose={() => setImageForEditing(null)} getAiInstance={getAiInstance} onEditComplete={(newImage) => setImages(prev => [newImage, ...prev])} />}
+            {selectedImage && (
+                <ImageModal
+                    image={selectedImage}
+                    onClose={() => setSelectedImage(null)}
+                    onGenerateVariations={onGenerateVariations}
+                    onUseAsStoryPrompt={onUseAsStoryPrompt}
+                    onEditFromModal={handleEditFromModal}
+                    onUseImageForVideo={onUseImageForVideo}
+                />
+            )}
+            {imageToEdit && (
+                <ImageEditModal image={imageToEdit} onClose={() => setImageToEdit(null)} onEdit={onEditImage} isProcessing={isProcessing} />
+            )}
         </div>
     );
 };

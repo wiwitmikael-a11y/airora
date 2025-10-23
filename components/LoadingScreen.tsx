@@ -10,17 +10,17 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ loreSnippets }) => {
     const [currentSnippetIndex, setCurrentSnippetIndex] = useState(0);
     const [isFading, setIsFading] = useState(false);
 
-    // Animate progress bar over ~9 seconds
+    // Animate progress bar
     useEffect(() => {
         const timer = setInterval(() => {
             setProgress(oldProgress => {
-                if (oldProgress >= 100) {
+                if (oldProgress === 100) {
                     clearInterval(timer);
                     return 100;
                 }
                 return Math.min(oldProgress + 1, 100);
             });
-        }, 90);
+        }, 90); // a bit faster than 10s to ensure it finishes
 
         return () => {
             clearInterval(timer);
@@ -29,26 +29,37 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ loreSnippets }) => {
 
     // Change lore snippet based on progress
     useEffect(() => {
-        if (!loreSnippets || loreSnippets.length === 0) return;
-        
-        const numberOfSnippetsToShow = loreSnippets.length;
+        // Show 5 distinct snippets during the loading process for a better paced narrative
+        const numberOfSnippetsToShow = 5;
         const progressPerSnippet = 100 / numberOfSnippetsToShow;
         
-        const targetIndex = Math.min(
+        // Calculate which of the 5 "steps" we are in based on progress
+        const targetStepIndex = Math.min(
             Math.floor(progress / progressPerSnippet),
             numberOfSnippetsToShow - 1
         );
 
-        if (targetIndex !== currentSnippetIndex) {
-            setIsFading(true);
+        // If the calculated step is different from the current one, trigger a transition
+        if (targetStepIndex !== currentSnippetIndex) {
+            setIsFading(true); // Start fading out the old snippet
             setTimeout(() => {
-                setCurrentSnippetIndex(targetIndex);
-                setIsFading(false);
-            }, 500); // Match CSS fade-out time
+                setCurrentSnippetIndex(targetStepIndex); // Change the snippet step
+                setIsFading(false); // Start fading in the new snippet
+            }, 500); // This duration should match the CSS fade-out time
         }
-    }, [progress, currentSnippetIndex, loreSnippets]);
+    }, [progress, currentSnippetIndex]);
+
+    // This logic ensures we show the first 4 snippets and then the final "welcome" snippet.
+    const getSnippet = () => {
+        if (currentSnippetIndex < 4) {
+            // For the first 4 steps, show the first 4 snippets
+            return loreSnippets[currentSnippetIndex];
+        }
+        // For the 5th step (index 4), show the last snippet from the original array.
+        return loreSnippets[loreSnippets.length - 1];
+    };
     
-    const currentSnippet = loreSnippets[currentSnippetIndex] || '';
+    const currentSnippet = getSnippet();
 
     return (
         <div className="h-screen w-screen flex flex-col items-center justify-center p-4 z-10 animate-fade-in">

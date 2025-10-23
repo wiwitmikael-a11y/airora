@@ -1,118 +1,79 @@
-import React, { useState, useCallback } from 'react';
-import { nanoid } from 'nanoid';
-import { GoogleGenAI, Modality } from '@google/genai';
-import { ImageForEditing, GeneratedImage } from '../types';
-import InputBar from './InputBar';
+import React, { useState, useEffect, useRef } from 'react';
 import { CloseIcon, SparklesIcon } from './icons/Icons';
-import { EDIT_IMAGE_MODEL_ID } from '../constants';
+import { ImageForEditing } from '../types';
 import { playSound } from '../sound';
 
 interface ImageEditModalProps {
     image: ImageForEditing;
     onClose: () => void;
-    getAiInstance: () => GoogleGenAI | null;
-    onEditComplete: (newImage: GeneratedImage) => void;
+    onEdit: (imageToEdit: ImageForEditing, prompt: string) => void;
+    isProcessing: boolean;
 }
 
-const ImageEditModal: React.FC<ImageEditModalProps> = ({ image, onClose, getAiInstance, onEditComplete }) => {
-    const [isLoading, setIsLoading] = useState(false);
-    const [editedImage, setEditedImage] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+const ImageEditModal: React.FC<ImageEditModalProps> = ({ image, onClose, onEdit, isProcessing }) => {
+    const [prompt, setPrompt] = useState('');
+    const modalRef = useRef<HTMLDivElement>(null);
 
-    React.useEffect(() => {
-        playSound('open');
+    useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
+            if (e.key === 'Escape') {
+                onClose();
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
-        return () => {
-            playSound('close');
-            window.removeEventListener('keydown', handleKeyDown);
-        };
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, [onClose]);
 
-    const handleEdit = useCallback(async (prompt: string) => {
-        const ai = getAiInstance();
-        if (!ai || !prompt) return;
-
-        setIsLoading(true);
-        setEditedImage(null);
-        setError(null);
-
-        try {
-            const imagePart = {
-                inlineData: { data: image.base64, mimeType: image.mimeType },
-            };
-            const textPart = { text: prompt };
-
-            const response = await ai.models.generateContent({
-                model: EDIT_IMAGE_MODEL_ID,
-                contents: { parts: [imagePart, textPart] },
-                config: {
-                    responseModalities: [Modality.IMAGE],
-                },
-            });
-            
-            const imagePartResponse = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
-
-            if (imagePartResponse?.inlineData) {
-                const base64ImageBytes: string = imagePartResponse.inlineData.data;
-                const imageUrl = `data:${imagePartResponse.inlineData.mimeType};base64,${base64ImageBytes}`;
-                setEditedImage(imageUrl);
-                const newImage: GeneratedImage = {
-                    id: nanoid(),
-                    prompt: `${image.prompt} (edited: ${prompt})`,
-                    imageUrl,
-                    status: 'completed'
-                };
-                onEditComplete(newImage);
-            } else {
-                throw new Error("No image data returned from API.");
-            }
-        } catch (err) {
-            console.error('Error editing image:', err);
-            setError("Failed to edit image. Please try again.");
-        } finally {
-            setIsLoading(false);
+    const handleSubmit = () => {
+        if (prompt.trim() && !isProcessing) {
+            playSound('send');
+            onEdit(image, prompt);
+            onClose();
         }
-    }, [getAiInstance, image, onEditComplete]);
+    };
 
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 animate-fade-in" onClick={onClose}>
-            <div className="w-full max-w-4xl glass-glow rounded-xl p-6 flex flex-col lg:flex-row gap-6 relative animate-zoom-in" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute -top-3 -right-3 p-1.5 bg-gray-800 rounded-full z-10 hover:bg-gray-700">
-                    <CloseIcon className="w-5 h-5 text-white" />
+        <div 
+            ref={modalRef}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] animate-fade-in"
+            onClick={(e) => {
+                if(modalRef.current === e.target) onClose();
+            }}
+        >
+            <div className="relative w-11/12 max-w-lg max-h-[90vh] flex flex-col glass-glow rounded-2xl">
+                <div className="overflow-y-auto custom-scrollbar p-6">
+                    <h2 className="text-lg font-bold text-white mb-4">Edit Image</h2>
+                    <div className="mb-4 aspect-square rounded-lg overflow-hidden bg-gray-900/50">
+                         <img src={image.imageUrl} alt={image.prompt} className="w-full h-full object-contain" />
+                    </div>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            placeholder="Jelaskan perubahan yang Anda inginkan... seperti 'tambahkan galaksi di matanya'"
+                            className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg py-2 px-4 pr-12 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500/80 text-sm"
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+                            disabled={isProcessing}
+                        />
+                        <button
+                            onClick={handleSubmit}
+                            onMouseEnter={() => !isProcessing && prompt.trim() && playSound('hover')}
+                            disabled={isProcessing || !prompt.trim()}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-gradient-to-tr from-teal-500 to-purple-600 text-white transition-all duration-300 hover:scale-110 disabled:opacity-50 disabled:hover:scale-100"
+                            aria-label="Submit edit"
+                        >
+                            {isProcessing ? (
+                                <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+                            ) : (
+                                <SparklesIcon className="w-5 h-5" />
+                            )}
+                        </button>
+                    </div>
+                </div>
+                <button onClick={() => { playSound('close'); onClose(); }} onMouseEnter={() => playSound('hover')} className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors z-10">
+                    <CloseIcon className="w-6 h-6 text-gray-400"/>
                 </button>
-
-                <div className="lg:w-1/2 flex flex-col items-center justify-center">
-                    <p className="text-sm text-gray-400 mb-2">Original Image</p>
-                    <img src={image.imageUrl} alt="Original" className="rounded-lg max-h-64 lg:max-h-full object-contain" />
-                </div>
-
-                <div className="lg:w-1/2 flex flex-col">
-                    <div className="flex-1 flex flex-col items-center justify-center bg-gray-800/50 rounded-lg p-4 min-h-[200px]">
-                        {isLoading ? (
-                            <div className="flex flex-col items-center text-center">
-                                <SparklesIcon className="w-12 h-12 text-teal-400 animate-pulse mb-4" />
-                                <p className="text-white">Editing your image...</p>
-                            </div>
-                        ) : editedImage ? (
-                            <>
-                                <p className="text-sm text-gray-400 mb-2">Edited Image</p>
-                                <img src={editedImage} alt="Edited" className="rounded-lg max-h-64 lg:max-h-full object-contain" />
-                            </>
-                        ) : (
-                            <div className="flex flex-col items-center text-center text-gray-400 p-4">
-                                <SparklesIcon className="w-12 h-12 mb-4" />
-                                <h3 className="font-bold text-lg text-white mb-1">Edit Image</h3>
-                                {error ? <p className="text-red-400">{error}</p> : <p>Describe the changes you'd like to make.</p>}
-                            </div>
-                        )}
-                    </div>
-                    <div className="mt-4">
-                        <InputBar onSendMessage={handleEdit} isLoading={isLoading} />
-                    </div>
-                </div>
             </div>
         </div>
     );

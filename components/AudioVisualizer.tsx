@@ -7,7 +7,9 @@ interface AudioVisualizerProps {
 }
 
 const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ mediaStream, audioContext, isLive }) => {
-    const animationFrameId = useRef<number>();
+    // FIX: Initialize useRef with null to provide an explicit initial value.
+    // This resolves a potential TypeScript error with useRef overloads by making the intended usage explicit.
+    const animationFrameId = useRef<number | null>(null);
     const analyser = useRef<AnalyserNode | null>(null);
     const visualizerRef = useRef<HTMLDivElement>(null);
 
